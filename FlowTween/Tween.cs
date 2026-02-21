@@ -9,11 +9,16 @@ namespace FlT
         public enum EaseType { In, Out, InOut, OutIn }
 
         public enum LoopType { Restart, Yoyo }
+        public enum TweenUpdateMode { Idle, Fixed }
 
         public object Id => id;
 
-        public float Progress => Mathf.Clamp01(Elapsed / Duration);
-        public bool IsPaused => paused;
+        public TweenUpdateMode UpdateMode => updateMode;
+        
+        public float Progress   => Mathf.Clamp01(Elapsed / Duration);
+        public bool IsPlaying   => !paused && !completed;
+        public bool IsPaused    => paused;
+        public bool IsCompleted => completed;
 
         internal bool IsRelative => relative;
 
@@ -34,8 +39,6 @@ namespace FlT
 
         public UnityEngine.Object Target { get; set; }
 
-        public bool IsCompleted { get; private set; }
-
         public float Elapsed { get; set; }
         public float Duration { get; set; }
         public float Delay { get; set; }
@@ -48,17 +51,22 @@ namespace FlT
         private Action onComplete;
         private Action<float> onUpdate;
         private Action<int> onLoop;
+        private Action onKill;
 
         private AnimationCurve customCurve;
 
-        private TransitionType transition = TransitionType.Linear;
-        private EaseType ease = EaseType.In;
+        private TransitionType transition = FlowTween.DefaultTransition;
+        private EaseType ease = FlowTween.DefaultEase;
         private LoopType loopType = LoopType.Restart;
+        private TweenUpdateMode updateMode = TweenUpdateMode.Idle;
 
+        private bool completed;
         private bool paused;
         private bool started;
         private bool relative;
         private bool useUnscaledTime;
+        private bool useSpeedBase;
+        private bool popped;
 
         private string group;
 
@@ -66,6 +74,7 @@ namespace FlT
         private int loops;
         private int currentLoop;
 
+        private float speed;
         private float delayElapsed;
         private float playbackDirection = 1f;
 
@@ -93,7 +102,8 @@ namespace FlT
 
         public void Kill()
         {
-            IsCompleted = true;
+            completed = true;
+            onKill?.Invoke();
         }
 
         public Tween Then(Tween tween)
@@ -107,7 +117,7 @@ namespace FlT
         {
             Elapsed = 0f;
             currentLoop = 0;
-            IsCompleted = false;
+            completed = false;
             paused = false;
             started = false;
             playbackDirection = 1f;
@@ -120,7 +130,7 @@ namespace FlT
         {
             onComplete?.Invoke();
             pendingTween?.UnPend();
-            IsCompleted = true;
+            completed = true;
 
             return this;
         }
@@ -147,6 +157,12 @@ namespace FlT
         public Tween OnUpdate(Action<float> callback)
         {
             onUpdate = callback;
+            return this;
+        }
+
+        public Tween OnKill(Action callback)
+        {
+            onKill = callback;
             return this;
         }
         #endregion
@@ -239,6 +255,23 @@ namespace FlT
             useUnscaledTime = value;
             return this;
         }
+
+        public Tween SetSpeedBase(float unitsPerSecond)
+        {
+            useSpeedBase = true;
+            speed = unitsPerSecond;
+            return this;
+        }
+
+        public Tween SetUpdateMode(TweenUpdateMode mode)
+        {
+            if (popped) return this;
+
+            FlowTween.RemoveActiveTween(this);
+            updateMode = mode;
+            FlowTween.AddActiveTween(this);
+            return this;
+        }
         #endregion
         
         #region Transitions
@@ -273,11 +306,11 @@ namespace FlT
         {
             if (Target != null && !Target)
             {
-                IsCompleted = true;
+                completed = true;
                 return;
             }
 
-            if (paused || IsCompleted)
+            if (paused || completed)
                 return;
 
             float dt = useUnscaledTime ? unScaledDelta : delta;
@@ -296,6 +329,12 @@ namespace FlT
                 started = true;
                 interpolator?.OnStart();
                 onStart?.Invoke();
+
+                if (useSpeedBase && interpolator.TryGetDistance(out float dist))
+                {
+                    Duration = dist / speed;
+                    if (currentLoop == 0) Elapsed = 0f;
+                }
             }
 
             float normalized = Mathf.Clamp01(Elapsed / Duration);
@@ -341,27 +380,32 @@ namespace FlT
                 FlowTween.RemoveTweenFromGroup(this, group);
             group = null;
 
-            transition = TransitionType.Linear;
-            ease = EaseType.In;
+            transition = FlowTween.DefaultTransition;
+            ease = FlowTween.DefaultEase;
+            updateMode = TweenUpdateMode.Idle;
 
-            IsCompleted = false;
+            completed = false;
             paused = false;
             started = false;
             relative = false;
+            useSpeedBase = false;
+            useUnscaledTime = false;
+            popped = false;
 
             Elapsed = 0f;
             delayElapsed = 0f;
             Delay = 0f;
+            speed = 0f;
 
             onLoop = null;
             onComplete = null;
             onUpdate = null;
             onStart = null;
+            onKill = null;
 
             loops = 0;
             currentLoop = 0;
 
-            useUnscaledTime = false;
             customCurve = null;
             pendingTween = null;
 
@@ -377,12 +421,14 @@ namespace FlT
 
         internal void UnPend()
         {
+            popped = false;
             Restart();
             FlowTween.AddActiveTween(this);
         }
 
         internal void Pop()
         {
+            popped = true;
             FlowTween.RemoveActiveTween(this);
         }
     }

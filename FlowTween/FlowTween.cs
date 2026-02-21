@@ -11,7 +11,17 @@ namespace FlT
         private const float PoolShrinkInterval = 10f;
         private const float PoolShrinkPercent = 0.25f;
 
+        public static int ActiveIdleCount     => activeTweens.Count;
+        public static int ActiveFixedCount    => activeFixedTweens.Count;
+        public static int ActiveCount         => activeTweens.Count + activeFixedTweens.Count;
+        public static int ActiveSequenceCount => activeSequences.Count;
+
+        public static Tween.TransitionType DefaultTransition => defaultTransition;
+        public static Tween.EaseType DefaultEase => defaultEase;
+
         private static readonly List<Tween> activeTweens = new();
+        private static readonly List<Tween> activeFixedTweens = new();
+
         private static readonly Stack<Tween> tweenPool = new();
         private static readonly Dictionary<string, HashSet<Tween>> groups = new();
 
@@ -25,6 +35,9 @@ namespace FlT
         private static readonly Action<Tween> completeAction = t => t.Complete();
 
         private static FlowTween instance;
+
+        private static Tween.TransitionType defaultTransition = Tween.TransitionType.Linear;
+        private static Tween.EaseType defaultEase = Tween.EaseType.In;
 
         private static float shrinkTimer;
 
@@ -96,6 +109,24 @@ namespace FlT
             }
         }
 
+        private void FixedUpdate()
+        {
+            for (int i = activeFixedTweens.Count - 1; i >= 0; i--)
+            {
+                Tween tween = activeFixedTweens[i];
+
+                tween.Update(Time.fixedDeltaTime, Time.fixedUnscaledDeltaTime);
+
+                if (tween.IsCompleted)
+                {
+                    ReturnToPool(tween);
+
+                    activeFixedTweens[i] = activeFixedTweens[^1];
+                    activeFixedTweens.RemoveAt(activeFixedTweens.Count - 1);
+                }
+            }
+        }
+
         private void OnSceneUnloaded(Scene scene)
         {
             for (int i = activeTweens.Count - 1; i >= 0; i--)
@@ -115,7 +146,28 @@ namespace FlT
                     activeTweens.RemoveAt(i);
                 }
             }
+
+            for (int i = activeFixedTweens.Count - 1; i >= 0; i--)
+            {
+                Tween tween = activeFixedTweens[i];
+
+                GameObject go = tween.Target switch
+                {
+                    GameObject g => g,
+                    Component c  => c.gameObject,
+                    _            => null
+                };
+
+                if (go != null && go.scene == scene)
+                {
+                    ReturnToPool(tween);
+                    activeFixedTweens.RemoveAt(i);
+                }
+            }
         }
+
+        public static void SetDefaultTransition(Tween.TransitionType transition) => defaultTransition = transition;
+        public static void SetDefaultEase(Tween.EaseType ease) => defaultEase = ease;
 
         #region Pool Shrink
         private static void ShrinkPools()
@@ -159,7 +211,7 @@ namespace FlT
         {
             Tween tween = tweenPool.Count == 0 ? CreateTween() : tweenPool.Pop();
             tween.SetDuration(duration);
-            activeTweens.Add(tween);
+            AddActiveTween(tween);
             return tween;
         }
 
@@ -169,8 +221,33 @@ namespace FlT
             tweenPool.Push(tween);
         }
 
-        public static void RemoveActiveTween(Tween tween) => activeTweens.Remove(tween);
-        public static void AddActiveTween(Tween tween) => activeTweens.Add(tween);
+        public static void RemoveActiveTween(Tween tween)
+        {
+            switch (tween.UpdateMode)
+            {
+                case Tween.TweenUpdateMode.Idle:
+                    activeTweens.Remove(tween);
+                    break;
+                
+                case Tween.TweenUpdateMode.Fixed:
+                    activeFixedTweens.Remove(tween);
+                    break;
+            }
+        }
+
+        public static void AddActiveTween(Tween tween)
+        {
+            switch (tween.UpdateMode)
+            {
+                case Tween.TweenUpdateMode.Idle:
+                    activeTweens.Add(tween);
+                    break;
+                
+                case Tween.TweenUpdateMode.Fixed:
+                    activeFixedTweens.Add(tween);
+                    break;
+            }
+        }
         #endregion
 
         #region Sequence
@@ -231,6 +308,10 @@ namespace FlT
             for (int i = 0; i < activeTweens.Count; i++)
                 if (activeTweens[i].Target == target)
                     activeTweens[i].Kill();
+            
+            for (int i = 0; i < activeFixedTweens.Count; i++)
+                if (activeFixedTweens[i].Target == target)
+                    activeFixedTweens[i].Kill();
         }
 
         public static void CompleteTarget(UnityEngine.Object target)
@@ -238,6 +319,10 @@ namespace FlT
             for (int i = 0; i < activeTweens.Count; i++)
                 if (activeTweens[i].Target == target)
                     activeTweens[i].Complete();
+
+            for (int i = 0; i < activeFixedTweens.Count; i++)
+                if (activeFixedTweens[i].Target == target)
+                    activeFixedTweens[i].Complete();
         }
 
         public static void KillById(object id)
@@ -247,6 +332,10 @@ namespace FlT
             for (int i = 0; i < activeTweens.Count; i++)
                 if (activeTweens[i].Id != null && activeTweens[i].Id.Equals(id))
                     activeTweens[i].Kill();
+
+            for (int i = 0; i < activeFixedTweens.Count; i++)
+                if (activeFixedTweens[i].Id != null && activeFixedTweens[i].Id.Equals(id))
+                    activeFixedTweens[i].Kill();
         }
         #endregion
 
@@ -289,6 +378,18 @@ namespace FlT
 
             for (int i = 0; i < groupSnapshot.Count; i++)
                 config(groupSnapshot[i]);
+        }
+
+        public static void ForEachActiveFixedTween(Action<Tween> action)
+        {
+            for (int i = 0; i < activeFixedTweens.Count; i++)
+                action(activeFixedTweens[i]);
+        }
+
+        public static void ForEachActiveSequence(Action<Sequence> action)
+        {
+            for (int i = 0; i < activeSequences.Count; i++)
+                action(activeSequences[i]);
         }
 
         private static bool ValidateGroup(string group)

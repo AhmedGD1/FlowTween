@@ -7,6 +7,20 @@ namespace FlT
 {
     public enum SquishDirection { Up, Down }
 
+    internal struct ShakePoint
+    {
+        public Vector3 offset;
+
+        public ShakePoint(float strength)
+        {
+            offset = new Vector3(
+                UnityEngine.Random.Range(-strength, strength),
+                UnityEngine.Random.Range(-strength, strength),
+                UnityEngine.Random.Range(-strength, strength)
+            );
+        }
+    }
+
     public static class FlowTweenExtensions
     {
         #region Main Methods
@@ -80,8 +94,14 @@ namespace FlT
         #endregion
 
         #region UI Methods
-        public static Tween AnchorMove(this RectTransform rectTransform, Vector2 to, float duration) =>
+        public static Tween FlowAnchorMove(this RectTransform rectTransform, Vector2 to, float duration) =>
             FlowTween.GetTween<RectTransform, Vector2, AnchoredPositionInterpolator>(rectTransform, duration, to);
+
+        public static Tween FlowAnchorMin(this RectTransform t, Vector2 to, float duration)
+            => FlowTween.GetTween<RectTransform, Vector2, AnchorMinInterpolator>(t, duration, to);
+
+        public static Tween FlowAnchorMax(this RectTransform t, Vector2 to, float duration)
+            => FlowTween.GetTween<RectTransform, Vector2, AnchorMaxInterpolator>(t, duration, to);
 
         public static Tween FlowSizeDelta(this RectTransform rectTransform, Vector2 to, float duration) =>
             FlowTween.GetTween<RectTransform, Vector2, SizeDeltaInterpolator>(rectTransform, duration, to);
@@ -102,8 +122,8 @@ namespace FlT
         #endregion
 
         #region Material Methods
-        public static Tween FlowColor(this Material material, Color to, float duration) =>
-            FlowTween.GetTween<Material, Color, MaterialColorInterpolator>(material, duration, to);
+        public static Tween FlowColor(this Renderer renderer, Color to, float duration) =>
+            FlowTween.GetTween<Renderer, Color, RendererColorInterpolator>(renderer, duration, to);
         #endregion
 
         #region Audio Methods
@@ -145,88 +165,185 @@ namespace FlT
 
         public static Tween FlowReveal(this TMP_Text text, float duration) =>
             FlowTween.GetTween<TMP_Text, int, TMPProRevealInterpolator>(text, duration, text.textInfo.characterCount);
+
+        public static Tween FlowFillAmount(this Image i, float to, float duration) =>
+            FlowTween.GetTween<Image, float, ImageFillInterpolator>(i, duration, to);
+
+        public static Tween FlowPosition(this ScrollRect s, Vector2 to, float duration) =>
+            FlowTween.GetTween<ScrollRect, Vector2, ScrollRectPositionInterpolator>(s, duration, to);
+
+        public static Tween FlowValue(this Slider s, float to, float duration) =>
+            FlowTween.GetTween<Slider, float, SliderValueInterpolator>(s, duration, to);
+        #endregion
+
+        #region RigidBody Methods
+        public static Tween FlowPosition(this Rigidbody rb, Vector3 to, float duration) =>
+            FlowTween.GetTween<Rigidbody, Vector3, RigidbodyPositionInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
+
+        public static Tween TweenRotation(this Rigidbody rb, Quaternion to, float duration) =>
+            FlowTween.GetTween<Rigidbody, Quaternion, RigidbodyRotationInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
+
+        public static Tween TweenPosition(this Rigidbody2D rb, Vector2 to, float duration) =>
+            FlowTween.GetTween<Rigidbody2D, Vector2, Rigidbody2DPositionInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
+
+        public static Tween FlowRotation(this Rigidbody2D rb, float to, float duration) =>
+            FlowTween.GetTween<Rigidbody2D, float, Rigidbody2DRotationInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
         #endregion
 
         #region Shake 2D
-
-        /// <summary>Shakes the transform's position on the XY plane (Z unchanged). Suitable for 2D games.</summary>
-        public static Tween FlowShake2D(this Transform transform, float duration, float strength = 1f, float randomness = 90f)
+        public static Tween FlowShake2D(this Transform transform, float duration, float strength = 1f, float frequency = 20f)
         {
-            Vector3 startPosition = transform.position;
+            Vector3 startPos = transform.position;
+
+            float seedX = UnityEngine.Random.value * 10000f;
+            float seedY = seedX + 131.73f;
 
             return FlowVirtual.Float(0f, 1f, duration, t =>
             {
-                float dampedStrength = Mathf.Lerp(strength, 0f, t);
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float noiseTime = t * frequency;
 
-                float angle  = UnityEngine.Random.Range(0f, 360f) * Mathf.Deg2Rad;
-                float spread = randomness * Mathf.Deg2Rad;
-                angle += UnityEngine.Random.Range(-spread, spread);
+                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
+                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
 
-                transform.position = startPosition + new Vector3(
-                    Mathf.Cos(angle) * dampedStrength,
-                    Mathf.Sin(angle) * dampedStrength,
-                    0f
+                transform.position = new Vector3(
+                    startPos.x + x,
+                    startPos.y + y,
+                    startPos.z
                 );
-            }).OnComplete(() => transform.position = startPosition);
+
+            }).OnComplete(() => transform.position = startPos);
         }
 
-        /// <summary>Shakes the transform's rotation on the Z axis only (degrees). Suitable for 2D games.</summary>
-        public static Tween FlowShakeRotation2D(this Transform transform, float duration, float strength = 15f)
+        public static Tween FlowShakeLocal2D(this Transform transform, float duration, float strength = 1f, float frequency = 20f)
         {
-            Vector3 startEuler = transform.localEulerAngles;
+            Vector3 startPos = transform.localPosition;
+
+            float seedX = UnityEngine.Random.value * 10000f;
+            float seedY = seedX + 131.73f;
 
             return FlowVirtual.Float(0f, 1f, duration, t =>
             {
-                float dampedStrength = Mathf.Lerp(strength, 0f, t);
-                float zShake = UnityEngine.Random.Range(-dampedStrength, dampedStrength);
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float noiseTime = t * frequency;
 
-                transform.localEulerAngles = new Vector3(startEuler.x, startEuler.y, startEuler.z + zShake);
-            }).OnComplete(() => transform.localEulerAngles = startEuler);
+                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
+                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
+
+                transform.localPosition = new Vector3(
+                    startPos.x + x,
+                    startPos.y + y,
+                    startPos.z
+                );
+
+            }).OnComplete(() => transform.position = startPos);
         }
-
         #endregion
 
         #region Shake 3D
-
-        /// <summary>Shakes the transform's position on all three axes. Suitable for 3D games.</summary>
-        public static Tween FlowShake3D(this Transform transform, float duration, float strength = 1f, float randomness = 90f)
+        public static Tween FlowShake3D(this Transform transform, float duration, float strength = 1f, float frequency = 20f)
         {
-            Vector3 startPosition = transform.position;
+            Vector3 startPos = transform.position;
+
+            float seedX = UnityEngine.Random.value * 10000f;
+            float seedY = seedX + 131.73f;
+            float seedZ = seedX + 263.46f;
 
             return FlowVirtual.Float(0f, 1f, duration, t =>
             {
-                float dampedStrength = Mathf.Lerp(strength, 0f, t);
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float noiseTime = t * frequency;
 
-                Vector3 offset = UnityEngine.Random.insideUnitSphere;
-                float spread   = Mathf.Clamp01(randomness / 180f);
-                offset         = Vector3.Lerp(offset.normalized, UnityEngine.Random.onUnitSphere, spread);
+                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
+                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
+                float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
 
-                transform.position = startPosition + offset * dampedStrength;
-            }).OnComplete(() => transform.position = startPosition);
+                transform.position = startPos + new Vector3(x, y, z);
+
+            }).OnComplete(() => transform.position = startPos);
         }
 
-        /// <summary>Shakes the transform's local euler rotation on all three axes (degrees). Suitable for 3D games.</summary>
-        public static Tween FlowShakeRotation3D(this Transform transform, float duration, float strength = 15f)
+        public static Tween FlowShakeLocal3D(this Transform transform, float duration, float strength = 1f, float frequency = 20f)
         {
-            Vector3 startEuler = transform.localEulerAngles;
+            Vector3 startPos = transform.localPosition;
+
+            float seedX = UnityEngine.Random.value * 10000f;
+            float seedY = seedX + 131.73f;
+            float seedZ = seedX + 263.46f;
 
             return FlowVirtual.Float(0f, 1f, duration, t =>
             {
-                float dampedStrength = Mathf.Lerp(strength, 0f, t);
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float noiseTime = t * frequency;
 
-                transform.localEulerAngles = startEuler + new Vector3(
-                    UnityEngine.Random.Range(-dampedStrength, dampedStrength),
-                    UnityEngine.Random.Range(-dampedStrength, dampedStrength),
-                    UnityEngine.Random.Range(-dampedStrength, dampedStrength)
-                );
-            }).OnComplete(() => transform.localEulerAngles = startEuler);
+                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
+                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
+                float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
+
+                transform.localPosition = startPos + new Vector3(x, y, z);
+
+            }).OnComplete(() => transform.localPosition = startPos);
+        }
+        #endregion
+
+        #region Shake Rotation
+        public static Tween FlowShakeRotation3D(this Transform transform, float duration, float strength = 15f, float frequency = 20f)
+        {
+            Quaternion startRot = transform.localRotation;
+
+            float seedX = UnityEngine.Random.value * 10000f;
+            float seedY = seedX + 131.73f;
+            float seedZ = seedX + 263.46f;
+
+            return FlowVirtual.Float(0f, 1f, duration, t =>
+            {
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float noiseTime = t * frequency;
+
+                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
+                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
+                float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
+
+                transform.localRotation = startRot * Quaternion.Euler(x, y, z);
+
+            }).OnComplete(() => transform.localRotation = startRot);
         }
 
+        public static Tween FlowShakeRotation2D(this Transform transform, float duration, float strength = 15f, float frequency = 20f)
+        {
+            Quaternion startRot = transform.localRotation;
+
+            float seed = UnityEngine.Random.value * 10000f;
+
+            return FlowVirtual.Float(0f, 1f, duration, t =>
+            {
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float z = (Mathf.PerlinNoise(t * frequency, seed) * 2f - 1f) * damper;
+
+                transform.localRotation = startRot * Quaternion.Euler(0f, 0f, z);
+
+            }).OnComplete(() => transform.localRotation = startRot);
+        }
+
+        public static Tween FlowShakeRotationAxis(this Transform transform, Vector3 axis, float duration, float strength = 15f, float frequency = 20f)
+        {
+            Quaternion startRot = transform.localRotation;
+
+            float seed = UnityEngine.Random.value * 10000f;
+
+            return FlowVirtual.Float(0f, 1f, duration, t =>
+            {
+                float damper = Mathf.Lerp(strength, 0f, t);
+                float angle = (Mathf.PerlinNoise(t * frequency, seed) * 2f - 1f) * damper;
+
+                transform.localRotation = startRot * Quaternion.AngleAxis(angle, axis);
+
+            }).OnComplete(() => transform.localRotation = startRot);
+        }
         #endregion
 
         #region Punch 2D
 
-        /// <summary>Punches the transform's position on the XY plane, then springs back. Suitable for 2D games.</summary>
         public static Tween FlowPunchPosition2D(this Transform transform, Vector2 punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startPosition = transform.position;
@@ -239,7 +356,6 @@ namespace FlT
             }).OnComplete(() => transform.position = startPosition);
         }
 
-        /// <summary>Punches the transform's local scale uniformly on XY (Z unchanged), then springs back. Suitable for 2D games.</summary>
         public static Tween FlowPunchScale2D(this Transform transform, float punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startScale = transform.localScale;
@@ -260,7 +376,6 @@ namespace FlT
 
         #region Punch 3D
 
-        /// <summary>Punches the transform's world position in the given direction, then springs back. Suitable for 3D games.</summary>
         public static Tween FlowPunchPosition3D(this Transform transform, Vector3 punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startPosition = transform.position;
@@ -272,7 +387,6 @@ namespace FlT
             }).OnComplete(() => transform.position = startPosition);
         }
 
-        /// <summary>Punches the transform's local scale on all three axes, then springs back. Suitable for 3D games.</summary>
         public static Tween FlowPunchScale3D(this Transform transform, Vector3 punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startScale = transform.localScale;

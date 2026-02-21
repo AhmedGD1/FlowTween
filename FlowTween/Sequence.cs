@@ -20,8 +20,11 @@ namespace FlT
             public void AddTime(float time) => startTime += time;
         }
 
-        public bool IsCompleted => completed;
-        public bool IsPaused => paused;
+        public float TotalDuration => totalDuration;
+        public float Elapsed       => elapsed;
+        
+        public bool IsCompleted    => completed;
+        public bool IsPaused       => paused;
 
         private readonly List<SequenceStep> steps = new();
         private readonly List<(float time, Action callback)> callbacks = new();
@@ -178,12 +181,18 @@ namespace FlT
             return this;
         }
 
+        public Sequence InsertCallback(float time, Action callback)
+        {
+            callbacks.Add((time, callback));
+            callbacks.Sort(callbackComparison);
+            return this;
+        }
+
         /// <summary>Insert a tween before all existing steps, shifting everything forward.</summary>
         public Sequence Prepend(Tween tween)
         {
             float shift = tween.Duration;
 
-            // Time Addition using for loop since sequence step is a struct
             for (int i = 0; i < steps.Count; i++)
             {
                 SequenceStep step = steps[i];

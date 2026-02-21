@@ -11,6 +11,7 @@ namespace FlT
         void Reset();
         void ReturnToPool();
         bool TrySetFrom<T>(T value);
+        bool TryGetDistance(out float distance);
     }
 
     internal sealed class StructTweenInterpolator<TTarget, TValue, TInterp> : ITweenInterpolator
@@ -87,6 +88,16 @@ namespace FlT
             Debug.LogWarning($"FlowTween: SetRelative not supported for type {typeof(TValue)}");
             return b;
         }
+
+        public bool TryGetDistance(out float distance)
+        {
+            if (from is Vector3 fv && to is Vector3 tv) { distance = Vector3.Distance(fv, tv); return true; }
+            if (from is Vector2 fv2 && to is Vector2 tv2) { distance = Vector2.Distance(fv2, tv2); return true; }
+            if (from is float ff && to is float tf) { distance = Mathf.Abs(ff - tf); return true; }
+            
+            distance = 0f;
+            return false;
+        }
     }
 
     internal sealed class FloatInterpolator : ITweenInterpolator
@@ -122,6 +133,12 @@ namespace FlT
 
         public static FloatInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public bool TryGetDistance(out float distance)
+        {
+            distance = Mathf.Abs(to - from);
+            return true;
+        }
     }
 
     internal sealed class IntInterpolator : ITweenInterpolator
@@ -157,6 +174,12 @@ namespace FlT
 
         public static IntInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public bool TryGetDistance(out float distance)
+        {
+            distance = Mathf.Abs(to - from);
+            return true;
+        }
     }
 
     internal sealed class Vector2Interpolator : ITweenInterpolator
@@ -192,6 +215,12 @@ namespace FlT
 
         public static Vector2Interpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public bool TryGetDistance(out float distance)
+        {
+            distance = Vector2.Distance(from, to);
+            return true;
+        }
     }
 
     internal sealed class Vector3Interpolator : ITweenInterpolator
@@ -227,6 +256,12 @@ namespace FlT
 
         public static Vector3Interpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public bool TryGetDistance(out float distance)
+        {
+            distance = Vector3.Distance(from, to);
+            return true;
+        }
     }
 
     internal sealed class ColorInterpolator : ITweenInterpolator
@@ -262,5 +297,11 @@ namespace FlT
 
         public static ColorInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public bool TryGetDistance(out float distance)
+        {
+            distance  = 0f;
+            return true;
+        }
     }
 }

@@ -156,11 +156,23 @@ namespace FlT
     }
 
     // ─── Material ─────────────────────────────────────────────────────────────
-    internal readonly struct MaterialColorInterpolator : IPropertyInterpolator<Material, Color>
+    internal readonly struct RendererColorInterpolator : IPropertyInterpolator<Renderer, Color>
     {
-        public Color GetValue(Material m) => m.color;
-        public void SetValue(Material m, Color from, Color to, float t)
-            => m.color = Color.LerpUnclamped(from, to, t);
+        private static readonly MaterialPropertyBlock mpb = new();
+        private static readonly int colorId = Shader.PropertyToID("_Color");
+
+        public Color GetValue(Renderer r)
+        {
+            r.GetPropertyBlock(mpb);
+            return mpb.GetColor(colorId);
+        }
+
+        public void SetValue(Renderer r, Color from, Color to, float t)
+        {
+            r.GetPropertyBlock(mpb);
+            mpb.SetColor(colorId, Color.LerpUnclamped(from, to, t));
+            r.SetPropertyBlock(mpb);
+        }
     }
 
     // ─── AudioSource ──────────────────────────────────────────────────────────
@@ -221,5 +233,74 @@ namespace FlT
         public int GetValue(TMP_Text target) => 0;
         public void SetValue(TMP_Text target, int from, int to, float t) =>
             target.maxVisibleCharacters = Mathf.RoundToInt(Mathf.LerpUnclamped(from, to, t)); 
+    }
+
+    // ─── RectTransform Anchors ────────────────────────────────────────────────
+    internal readonly struct AnchorMinInterpolator : IPropertyInterpolator<RectTransform, Vector2>
+    {
+        public Vector2 GetValue(RectTransform t) => t.anchorMin;
+        public void SetValue(RectTransform t, Vector2 from, Vector2 to, float pct)
+            => t.anchorMin = Vector2.LerpUnclamped(from, to, pct);
+    }
+
+    internal readonly struct AnchorMaxInterpolator : IPropertyInterpolator<RectTransform, Vector2>
+    {
+        public Vector2 GetValue(RectTransform t) => t.anchorMax;
+        public void SetValue(RectTransform t, Vector2 from, Vector2 to, float pct)
+            => t.anchorMax = Vector2.LerpUnclamped(from, to, pct);
+    }
+
+    // ─── ScrollRect ───────────────────────────────────────────────────────────
+    internal readonly struct ScrollRectPositionInterpolator : IPropertyInterpolator<ScrollRect, Vector2>
+    {
+        public Vector2 GetValue(ScrollRect s) => s.normalizedPosition;
+        public void SetValue(ScrollRect s, Vector2 from, Vector2 to, float pct)
+            => s.normalizedPosition = Vector2.LerpUnclamped(from, to, pct);
+    }
+
+    // ─── Slider ───────────────────────────────────────────────────────────────
+    internal readonly struct SliderValueInterpolator : IPropertyInterpolator<Slider, float>
+    {
+        public float GetValue(Slider s) => s.value;
+        public void SetValue(Slider s, float from, float to, float t)
+            => s.value = Mathf.LerpUnclamped(from, to, t);
+    }
+
+    // ─── Image FillAmount ─────────────────────────────────────────────────────
+    internal readonly struct ImageFillInterpolator : IPropertyInterpolator<Image, float>
+    {
+        public float GetValue(Image i) => i.fillAmount;
+        public void SetValue(Image i, float from, float to, float t)
+            => i.fillAmount = Mathf.LerpUnclamped(from, to, t);
+    }
+
+    // ─── Rigidbody ────────────────────────────────────────────────────────────
+    internal readonly struct RigidbodyPositionInterpolator : IPropertyInterpolator<Rigidbody, Vector3>
+    {
+        public Vector3 GetValue(Rigidbody rb) => rb.position;
+        public void SetValue(Rigidbody rb, Vector3 from, Vector3 to, float t)
+            => rb.MovePosition(Vector3.LerpUnclamped(from, to, t));
+    }
+
+    internal readonly struct RigidbodyRotationInterpolator : IPropertyInterpolator<Rigidbody, Quaternion>
+    {
+        public Quaternion GetValue(Rigidbody rb) => rb.rotation;
+        public void SetValue(Rigidbody rb, Quaternion from, Quaternion to, float t)
+            => rb.MoveRotation(Quaternion.SlerpUnclamped(from, to, t));
+    }
+
+    // ─── Rigidbody2D ──────────────────────────────────────────────────────────
+    internal readonly struct Rigidbody2DPositionInterpolator : IPropertyInterpolator<Rigidbody2D, Vector2>
+    {
+        public Vector2 GetValue(Rigidbody2D rb) => rb.position;
+        public void SetValue(Rigidbody2D rb, Vector2 from, Vector2 to, float t)
+            => rb.MovePosition(Vector2.LerpUnclamped(from, to, t));
+    }
+
+    internal readonly struct Rigidbody2DRotationInterpolator : IPropertyInterpolator<Rigidbody2D, float>
+    {
+        public float GetValue(Rigidbody2D rb) => rb.rotation;
+        public void SetValue(Rigidbody2D rb, float from, float to, float t)
+            => rb.MoveRotation(Mathf.LerpUnclamped(from, to, t));
     }
 }
