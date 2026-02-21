@@ -232,6 +232,9 @@ namespace FlT
             return this;
         }
 
+        public Tween SetGroup<TEnum>(TEnum group) where TEnum : Enum => 
+            SetGroup(group.ToString());
+
         public Tween SetTimeScale(float scale)
         {
             TimeScale = scale;

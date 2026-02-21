@@ -1,4 +1,3 @@
-using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -180,14 +179,243 @@ namespace FlT
         public static Tween FlowPosition(this Rigidbody rb, Vector3 to, float duration) =>
             FlowTween.GetTween<Rigidbody, Vector3, RigidbodyPositionInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
 
-        public static Tween TweenRotation(this Rigidbody rb, Quaternion to, float duration) =>
+        public static Tween FlowRotation(this Rigidbody rb, Quaternion to, float duration) =>
             FlowTween.GetTween<Rigidbody, Quaternion, RigidbodyRotationInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
 
-        public static Tween TweenPosition(this Rigidbody2D rb, Vector2 to, float duration) =>
+        public static Tween FlowPosition(this Rigidbody2D rb, Vector2 to, float duration) =>
             FlowTween.GetTween<Rigidbody2D, Vector2, Rigidbody2DPositionInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
 
         public static Tween FlowRotation(this Rigidbody2D rb, float to, float duration) =>
             FlowTween.GetTween<Rigidbody2D, float, Rigidbody2DRotationInterpolator>(rb, duration, to).SetUpdateMode(Tween.TweenUpdateMode.Fixed);
+        #endregion
+
+        #region Spin Effect
+        public static Tween FlowSpin(this Transform transform, float duration) =>
+            transform.FlowRotate(Vector3.forward * 360f, duration);
+        
+        public static Tween FlowSpin(this Transform transform, Vector3 axis, float duration) =>
+            transform.FlowRotate(axis * 360f, duration);
+        #endregion
+
+        #region Jello
+        /// <summary>
+        /// Oscillating squash-and-stretch that decays like gelatine.
+        /// </summary>
+        public static Tween FlowJello(this Transform transform, float duration, float intensity = 0.25f, float frequency = 4f)
+        {
+            Vector3 startScale = transform.localScale;
+
+            return FlowVirtual.Float(0f, 1f, duration, t =>
+            {
+                float decay  = 1f - t;
+                float wave   = Mathf.Sin(t * frequency * Mathf.PI * 2f) * intensity * decay;
+                transform.localScale = new Vector3(
+                    startScale.x + wave,
+                    startScale.y - wave,
+                    startScale.z
+                );
+
+            }).OnComplete(() => transform.localScale = startScale);
+        }
+        #endregion
+
+        #region Heartbeat
+        /// <summary>
+        /// Double-pulse scale effect mimicking a heartbeat (lub-dub).
+        /// </summary>
+        public static Sequence FlowHeartbeat(this Transform transform, float duration, float intensity = 0.3f, int beats = 1)
+        {
+            Vector3 origin   = transform.localScale;
+            Vector3 lub      = origin * (1f + intensity);
+            Vector3 mid      = origin * (1f + intensity * 0.4f);
+            Vector3 dub      = origin * (1f + intensity * 0.65f);
+
+            float beatDur  = duration / beats;
+            float step     = beatDur / 5f;
+
+            Sequence seq = FlowTween.Sequence();
+
+            for (int i = 0; i < beats; i++)
+            {
+                seq.Append(transform.FlowScale(lub,    step).Sine().EaseOut())   // lub up
+                   .Append(transform.FlowScale(mid,    step).Sine().EaseInOut()) // brief dip
+                   .Append(transform.FlowScale(dub,    step).Sine().EaseOut())   // dub up
+                   .Append(transform.FlowScale(origin, step * 2f).Sine().EaseIn()); // settle
+            }
+
+            return seq.Play();
+        }
+        #endregion
+
+        #region WobbleRotate
+        /// <summary>
+        /// Rotates back and forth with decaying oscillation before settling at the target rotation.
+        /// </summary>
+        public static Tween FlowWobbleRotate(this Transform transform, float duration, float strength = 20f, float frequency = 4f)
+        {
+            Quaternion startRot = transform.localRotation;
+
+            return FlowVirtual.Float(0f, 1f, duration, t =>
+            {
+                float decay = 1f - t;
+                float angle = Mathf.Sin(t * frequency * Mathf.PI * 2f) * strength * decay;
+                transform.localRotation = startRot * Quaternion.Euler(0f, 0f, angle);
+
+            }).OnComplete(() => transform.localRotation = startRot);
+        }
+        #endregion
+
+        #region Flip
+        /// <summary>
+        /// Flips the transform 180° or 360° on the Y axis by scaling through zero (card-flip illusion).
+        /// </summary>
+        public static Sequence FlowFlipY(this Transform transform, float duration, bool full = false)
+        {
+            Vector3 startScale = transform.localScale;
+            Vector3 flat       = new Vector3(0f, startScale.y, startScale.z);
+            Vector3 flipped    = new Vector3(-startScale.x, startScale.y, startScale.z);
+
+            float half = duration * 0.5f;
+
+            Sequence seq = FlowTween.Sequence()
+                .Append(transform.FlowScale(flat,    half).Sine().EaseIn())
+                .Append(transform.FlowScale(full ? flat : flipped, 0f))   // swap content here if needed
+                .Append(transform.FlowScale(full ? startScale : flipped, half).Sine().EaseOut());
+
+            return seq.Play();
+        }
+
+        /// <summary>
+        /// Flips the transform on the X axis (top-to-bottom flip).
+        /// </summary>
+        public static Sequence FlowFlipX(this Transform transform, float duration, bool full = false)
+        {
+            Vector3 startScale = transform.localScale;
+            Vector3 flat       = new Vector3(startScale.x, 0f, startScale.z);
+            Vector3 flipped    = new Vector3(startScale.x, -startScale.y, startScale.z);
+
+            float half = duration * 0.5f;
+
+            Sequence seq = FlowTween.Sequence()
+                .Append(transform.FlowScale(flat,    half).Sine().EaseIn())
+                .Append(transform.FlowScale(full ? startScale : flipped, half).Sine().EaseOut());
+
+            return seq.Play();
+        }
+        #endregion
+
+        #region Blink — SpriteRenderer
+        /// <summary>
+        /// Rapidly blinks a SpriteRenderer a set number of times.
+        /// </summary>
+        public static Sequence FlowBlink(this SpriteRenderer spriteRenderer, int blinks = 4, float blinkSpeed = 0.1f, bool endVisible = true)
+        {
+            Sequence seq = FlowTween.Sequence();
+
+            for (int i = 0; i < blinks; i++)
+            {
+                seq.Append(spriteRenderer.FlowFade(0f, blinkSpeed))
+                   .Append(spriteRenderer.FlowFade(1f, blinkSpeed));
+            }
+
+            if (!endVisible)
+                seq.Append(spriteRenderer.FlowFade(0f, blinkSpeed));
+
+            return seq.Play();
+        }
+        #endregion
+
+        #region SlideIn / SlideOut
+        public enum SlideDirection { Left, Right, Up, Down }
+
+        /// <summary>
+        /// Slides a RectTransform into its current position from an edge offset.
+        /// </summary>
+        public static Tween FlowSlideIn(this RectTransform rectTransform, SlideDirection direction, float offset, float duration)
+        {
+            Vector2 target    = rectTransform.anchoredPosition;
+            Vector2 startFrom = target + DirectionToOffset(direction, offset);
+            rectTransform.anchoredPosition = startFrom;
+
+            return rectTransform.FlowAnchorMove(target, duration).Sine().EaseOut();
+        }
+
+        /// <summary>
+        /// Slides a RectTransform out of its current position toward an edge.
+        /// </summary>
+        public static Tween FlowSlideOut(this RectTransform rectTransform, SlideDirection direction, float offset, float duration)
+        {
+            Vector2 startPos = rectTransform.anchoredPosition;
+            Vector2 target   = startPos + DirectionToOffset(direction, offset);
+
+            return rectTransform.FlowAnchorMove(target, duration).Sine().EaseIn();
+        }
+
+        private static Vector2 DirectionToOffset(SlideDirection dir, float offset) => dir switch
+        {
+            SlideDirection.Left  => new Vector2(-offset, 0f),
+            SlideDirection.Right => new Vector2( offset, 0f),
+            SlideDirection.Up    => new Vector2(0f,  offset),
+            SlideDirection.Down  => new Vector2(0f, -offset),
+            _                    => Vector2.zero
+        };
+        #endregion
+
+        #region Float
+        /// <summary>
+        /// Continuous up-and-down bobbing loop driven by a sine wave.
+        /// Call Kill() on the returned tween to stop it.
+        /// </summary>
+        public static Tween FlowFloat(this Transform transform, float amplitude = 0.2f, float frequency = 1f)
+        {
+            Vector3 origin = transform.localPosition;
+
+            return FlowVirtual.Float(0f, 1f, 1f / frequency, t =>
+            {
+                float y = Mathf.Sin(t * Mathf.PI * 2f) * amplitude;
+                transform.localPosition = new Vector3(origin.x, origin.y + y, origin.z);
+
+            }).SetLoops(-1, Tween.LoopType.Restart)
+              .OnComplete(() => transform.localPosition = origin);
+        }
+        #endregion
+
+        #region Pulse
+        /// <summary>
+        /// Looping scale + alpha throb to draw attention.
+        /// Call Kill() on the returned sequence to stop it.
+        /// </summary>
+        public static Sequence FlowPulse(this Transform transform, CanvasGroup canvasGroup,
+            float scaleMagnitude = 0.05f, float alphaMin = 0.7f, float frequency = 1f)
+        {
+            Vector3 origin  = transform.localScale;
+            float   period  = 1f / frequency;
+
+            Tween scaleTween = transform.FlowScale(origin * (1f + scaleMagnitude), period)
+                .SetLoops(-1, Tween.LoopType.Yoyo).Sine().EaseInOut();
+
+            Tween alphaTween = canvasGroup.FlowFade(alphaMin, period)
+                .SetLoops(-1, Tween.LoopType.Yoyo).Sine().EaseInOut();
+
+            return FlowTween.Sequence()
+                .Append(scaleTween)
+                .Join(alphaTween)
+                .Play();
+        }
+
+        /// <summary>
+        /// Looping scale-only throb (no CanvasGroup required).
+        /// </summary>
+        public static Tween FlowPulse(this Transform transform, float scaleMagnitude = 0.05f, float frequency = 1f)
+        {
+            Vector3 origin = transform.localScale;
+            float   period = 1f / frequency;
+
+            return transform.FlowScale(origin * (1f + scaleMagnitude), period)
+                .SetLoops(-1, Tween.LoopType.Yoyo)
+                .Sine()
+                .EaseInOut();
+        }
         #endregion
 
         #region Shake 2D

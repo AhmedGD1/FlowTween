@@ -368,7 +368,14 @@ namespace FlT
         public static void PauseGroup(string group) => ForEachGroup(group, pauseAction);
         public static void ResumeGroup(string group) => ForEachGroup(group, resumeAction);
 
-        private static void ForEachGroup(string group, Action<Tween> config)
+        public static void KillGroup<TEnum>(TEnum group) where TEnum : Enum => ForEachGroup(group, killAction);
+        public static void PauseGroup<TEnum>(TEnum group) where TEnum : Enum => ForEachGroup(group, pauseAction);
+        public static void ResumeGroup<TEnum>(TEnum group) where TEnum : Enum => ForEachGroup(group, resumeAction);
+
+        private static void ForEachGroup<TEnum>(TEnum group, Action<Tween> config) where TEnum : Enum => 
+            ForEachGroup(group, config);
+
+        public static void ForEachGroup(string group, Action<Tween> config)
         {
             if (!ValidateGroup(group))
                 return;
