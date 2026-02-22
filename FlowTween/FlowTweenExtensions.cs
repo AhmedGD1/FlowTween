@@ -1,4 +1,3 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -162,8 +161,8 @@ namespace FlT
         public static Tween FlowColor(this Graphic graphic, Color to, float duration) =>
             FlowTween.GetTween<Graphic, Color, GraphicColorInterpolator>(graphic, duration, to);
 
-        public static Tween FlowReveal(this TMP_Text text, float duration) =>
-            FlowTween.GetTween<TMP_Text, int, TMPProRevealInterpolator>(text, duration, text.textInfo.characterCount);
+        public static Tween FlowReveal(this TMPro.TMP_Text text, float duration) =>
+            FlowTween.GetTween<TMPro.TMP_Text, int, TMPProRevealInterpolator>(text, duration, text.textInfo.characterCount);
 
         public static Tween FlowFillAmount(this Image i, float to, float duration) =>
             FlowTween.GetTween<Image, float, ImageFillInterpolator>(i, duration, to);

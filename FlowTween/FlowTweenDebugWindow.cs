@@ -105,7 +105,7 @@ public class FlowTweenDebugWindow : EditorWindow
     private readonly List<Tween> filteredIdle  = new();
     private readonly List<Tween> filteredFixed = new();
     private bool filteredDirty = true;
-    private int  lastIdleCount = -1, lastFixedCount = -1;
+    private int  lastIdleCount = -1, lastFixedCount = -1, lastPendingCount = -1;
     private string lastSearch = "", lastGroupFilter = "";
     private bool lastShowPaused, lastShowPlaying, lastShowCompleted, lastShowWarnings;
     private SortMode lastSortMode; private bool lastSortAsc;
@@ -419,6 +419,7 @@ public class FlowTweenDebugWindow : EditorWindow
             {
                 FlowTween.ForEachActiveTween(t      => RecordHistory(t.GetHashCode(), t.Progress));
                 FlowTween.ForEachActiveFixedTween(t => RecordHistory(t.GetHashCode(), t.Progress));
+                FlowTween.ForEachPendingTween(t     => RecordHistory(t.GetHashCode(), t.Progress));
             }
         }
 
@@ -533,8 +534,9 @@ public class FlowTweenDebugWindow : EditorWindow
             || sortMode != lastSortMode || sortAsc != lastSortAsc;
 
         bool countsChanged =
-            FlowTween.ActiveIdleCount  != lastIdleCount
-            || FlowTween.ActiveFixedCount != lastFixedCount;
+            FlowTween.ActiveIdleCount   != lastIdleCount
+            || FlowTween.ActiveFixedCount  != lastFixedCount
+            || FlowTween.PendingTweenCount != lastPendingCount;
 
         bool changed = filteredDirty || filterParamsChanged || countsChanged;
         if (!changed) return;
@@ -543,8 +545,9 @@ public class FlowTweenDebugWindow : EditorWindow
         lastShowPaused = showPaused; lastShowPlaying = showPlaying;
         lastShowCompleted = showCompleted; lastShowWarnings = showWarnings;
         lastSortMode = sortMode; lastSortAsc = sortAsc;
-        lastIdleCount = FlowTween.ActiveIdleCount;
-        lastFixedCount = FlowTween.ActiveFixedCount;
+        lastIdleCount    = FlowTween.ActiveIdleCount;
+        lastFixedCount   = FlowTween.ActiveFixedCount;
+        lastPendingCount = FlowTween.PendingTweenCount;
         filteredDirty = false;
 
         // Only rebuild the list needed for the active tab to halve work.
@@ -557,6 +560,7 @@ public class FlowTweenDebugWindow : EditorWindow
         {
             tweenSnapshot.Clear();
             FlowTween.ForEachActiveTween(t => tweenSnapshot.Add(t));
+            FlowTween.ForEachPendingTween(t => tweenSnapshot.Add(t));   // .Then() chain tweens
             filteredIdle.Clear();
             filteredIdle.AddRange(FilterList(tweenSnapshot));
             SortList(filteredIdle);
@@ -816,7 +820,8 @@ public class FlowTweenDebugWindow : EditorWindow
 
         // Summary bar
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-        GUILayout.Label($"{filtered.Count}/{Mathf.Max(rawCount,0)} {(isFixed?"fixed":"idle")} tweens", EditorStyles.miniLabel);
+        string pendingLabel = (!isFixed && lastPendingCount > 0) ? $"  ⏳ {lastPendingCount} pending" : "";
+        GUILayout.Label($"{filtered.Count}/{Mathf.Max(rawCount,0)} {(isFixed?"fixed":"idle")} tweens{pendingLabel}", EditorStyles.miniLabel);
         if (filtered.Count > maxVisibleCards && maxVisibleCards > 0)
         {
             var wc = GUI.color; GUI.color = ColWarn;
@@ -991,9 +996,12 @@ public class FlowTweenDebugWindow : EditorWindow
         // Only warn about no target if there's also no interpolator — virtual tweens
         // (FlowVirtual.Float etc.) legitimately have no Unity Object target, they use
         // an Action callback instead. Check via reflection so this works without updated Tween.cs.
+        // Also skip this warning for popped tweens (waiting inside a Then() chain) — they
+        // haven't been activated yet and may not have had their interpolator set up.
         bool hasInterpolator = R_InterpolatorTypeName(t) != null ||
                                (_interpField != null && _interpField.GetValue(t) != null);
-        if (t.Target == null && t.IsPlaying && !hasInterpolator)
+        bool isPopped = R_IsPopped(t);
+        if (t.Target == null && t.IsPlaying && !hasInterpolator && !isPopped)
                                                                 list.Add(new TweenWarning { message = "No target and no interpolator assigned", color = new Color(0.7f,0.7f,0.2f) });
         // Detect destroyed Unity object that hasn't been cleaned up yet
         if (t.Target != null && !t.Target)                      list.Add(new TweenWarning { message = "Target has been destroyed! (pending cleanup)", color = ColFpsBad });
@@ -1024,12 +1032,15 @@ public class FlowTweenDebugWindow : EditorWindow
         string interpTypeName = GetInterpolatorTypeName(tween);
 
         // Virtual tweens (FlowVirtual.*) have no Unity Object target — use the interpolator
-        // type as the display name so the card is identifiable rather than showing "No Target"
+        // type as the display name so the card is identifiable rather than showing "No Target".
+        // Popped tweens (waiting in a Then() chain) are also shown with a clear ⏳ label.
         string targetName = tween.Target != null && tween.Target
             ? tween.Target.name
-            : !string.IsNullOrEmpty(interpTypeName)
-                ? $"~ virtual ({interpTypeName})"
-                : "— No Target —";
+            : R_IsPopped(tween)
+                ? $"⏳ pending ({(!string.IsNullOrEmpty(interpTypeName) ? interpTypeName.Replace("Interpolator","") : "?")})"
+                : !string.IsNullOrEmpty(interpTypeName)
+                    ? $"~ virtual ({interpTypeName})"
+                    : "— No Target —";
         if (!MatchesSearch(targetName, tween)) return;
 
         int   hash     = tween.GetHashCode();
@@ -1041,10 +1052,18 @@ public class FlowTweenDebugWindow : EditorWindow
         if (showConflictsOnly && !IsTweenConflicting(tween)) return;
 
         float progress   = tween.Progress;
-        Color stateColor = tween.IsCompleted ? ColCompleted : tween.IsPaused ? ColPaused : ColPlaying;
-        string stateLabel= tween.IsCompleted ? "Done" : tween.IsPaused ? "Paused" : "Playing";
+        bool  isPending  = tween.DbgIsPopped;
+        Color stateColor = isPending         ? new Color(0.5f, 0.8f, 1.0f)
+                         : tween.IsCompleted ? ColCompleted
+                         : tween.IsPaused    ? ColPaused
+                         :                     ColPlaying;
+        string stateLabel= isPending         ? "Pending"
+                         : tween.IsCompleted ? "Done"
+                         : tween.IsPaused    ? "Paused"
+                         :                     "Playing";
         bool  isConflict = IsTweenConflicting(tween);
-        Color barColor   = isConflict ? ColFpsBad
+        Color barColor   = isPending    ? new Color(0.3f, 0.5f, 0.7f)
+                         : isConflict   ? ColFpsBad
                          : warnings.Count > 0 ? ColWarn
                          : (highlightNearComplete && progress >= NearCompleteThresh && progress < 1f) ? ColBarNear
                          : ColBar;
@@ -1298,10 +1317,17 @@ public class FlowTweenDebugWindow : EditorWindow
                 GUI.color = new Color(0.4f, 0.65f, 0.9f);
                 GUILayout.Label($"[{depth+1}]", EditorStyles.miniLabel, GUILayout.Width(24));
 
-                // Target name if available, otherwise the interp type
-                GUI.color = pname != null ? Color.white : new Color(0.65f, 0.65f, 0.65f);
-                string displayName = pname ?? (R_InterpolatorTypeName(pending)?.Replace("Interpolator","") ?? "virtual");
-                GUILayout.Label(displayName, EditorStyles.miniLabel, GUILayout.Width(90));
+                // Target name if available.
+                // Pending tweens created via Then() may have no Unity Object target
+                // (e.g. FlowVirtual tweens, or GetTweenRaw calls). Fall back to the
+                // interpolator type so the row is always identifiable, never blank.
+                string pendingInterpType = R_InterpolatorTypeName(pending);
+                string displayName = pname
+                    ?? (!string.IsNullOrEmpty(pendingInterpType)
+                            ? $"~ {pendingInterpType.Replace("Interpolator","")}"
+                            : "~ virtual");
+                GUI.color = pname != null ? Color.white : new Color(0.65f, 0.85f, 0.65f);
+                GUILayout.Label(displayName, EditorStyles.miniLabel, GUILayout.Width(110));
 
                 // Interpolator value (from → to)
                 if (hasInterp)
@@ -2633,9 +2659,13 @@ public class FlowTweenDebugWindow : EditorWindow
         var result = new List<Tween>();
         foreach (var t in tweens)
         {
-            if (t.IsCompleted && !showCompleted) continue;
-            if (t.IsPaused    && !showPaused)    continue;
-            if (t.IsPlaying   && !showPlaying)   continue;
+            // Pending tweens are their own state — skip play/pause/complete toggles.
+            if (!t.DbgIsPopped)
+            {
+                if (t.IsCompleted && !showCompleted) continue;
+                if (t.IsPaused    && !showPaused)    continue;
+                if (t.IsPlaying   && !showPlaying)   continue;
+            }
             if (!string.IsNullOrEmpty(groupFilter) &&
                 (string.IsNullOrEmpty(t.Group) || !t.Group.ToLower().Contains(groupFilter.ToLower()))) continue;
             result.Add(t);

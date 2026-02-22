@@ -139,13 +139,12 @@ namespace FlT
             return this;
         }
 
-        public Tween Complete()
+        public void Complete()
         {
+            Elapsed = playbackDirection > 0f ? Duration : 0f;
             onComplete?.Invoke();
             pendingTween?.UnPend();
             completed = true;
-
-            return this;
         }
 
         #region Callback Methods
@@ -433,13 +432,15 @@ namespace FlT
         internal void Pend()
         {
             Pop();
+            FlowTween.RegisterPending(this);   // tell debugger this is a .Then() chain tween
         }
 
         internal void UnPend()
         {
-            popped = false;
+            FlowTween.UnregisterPending(this); // remove from pending before re-activating
             Restart();
             FlowTween.AddActiveTween(this);
+            popped = false;
         }
 
         internal void Pop()
