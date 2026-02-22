@@ -16,6 +16,28 @@ namespace FlT
         public static int ActiveCount         => activeTweens.Count + activeFixedTweens.Count;
         public static int ActiveSequenceCount => activeSequences.Count;
 
+        // ── Pool Statistics ────────────────────────────────────────────────────
+        public static int TweenPoolSize       => tweenPool.Count;
+        public static int SequencePoolSize    => sequencePool.Count;
+
+        public static int TweenPoolHits       => tweenPoolHits;
+        public static int TweenPoolMisses     => tweenPoolMisses;
+        public static int SequencePoolHits    => sequencePoolHits;
+        public static int SequencePoolMisses  => sequencePoolMisses;
+
+        // Returns (0..1) hit-rate; -1 if no requests yet
+        public static float TweenPoolHitRate =>
+            (tweenPoolHits + tweenPoolMisses) == 0 ? -1f
+            : tweenPoolHits / (float)(tweenPoolHits + tweenPoolMisses);
+
+        public static float SequencePoolHitRate =>
+            (sequencePoolHits + sequencePoolMisses) == 0 ? -1f
+            : sequencePoolHits / (float)(sequencePoolHits + sequencePoolMisses);
+
+        // Lifetime totals (since play-mode start / last reset)
+        public static int TweenPoolTotalReturns   => tweenPoolTotalReturns;
+        public static int SequencePoolTotalReturns => sequencePoolTotalReturns;
+
         public static Tween.TransitionType DefaultTransition => defaultTransition;
         public static Tween.EaseType DefaultEase => defaultEase;
 
@@ -40,6 +62,12 @@ namespace FlT
         private static Tween.EaseType defaultEase = Tween.EaseType.In;
 
         private static float shrinkTimer;
+
+        // Pool telemetry
+        private static int tweenPoolHits, tweenPoolMisses;
+        private static int tweenPoolTotalReturns;
+        private static int sequencePoolHits, sequencePoolMisses;
+        private static int sequencePoolTotalReturns;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void AutoInit()
@@ -169,6 +197,12 @@ namespace FlT
         public static void SetDefaultTransition(Tween.TransitionType transition) => defaultTransition = transition;
         public static void SetDefaultEase(Tween.EaseType ease) => defaultEase = ease;
 
+        public static void ResetPoolStats()
+        {
+            tweenPoolHits = tweenPoolMisses = tweenPoolTotalReturns = 0;
+            sequencePoolHits = sequencePoolMisses = sequencePoolTotalReturns = 0;
+        }
+
         #region Pool Shrink
         private static void ShrinkPools()
         {
@@ -209,7 +243,9 @@ namespace FlT
 
         public static Tween GetTweenRaw(float duration)
         {
-            Tween tween = tweenPool.Count == 0 ? CreateTween() : tweenPool.Pop();
+            Tween tween;
+            if (tweenPool.Count == 0) { tweenPoolMisses++; tween = CreateTween(); }
+            else                       { tweenPoolHits++;   tween = tweenPool.Pop(); }
             tween.SetDuration(duration);
             AddActiveTween(tween);
             return tween;
@@ -219,6 +255,7 @@ namespace FlT
         {
             tween.ResetData();
             tweenPool.Push(tween);
+            tweenPoolTotalReturns++;
         }
 
         public static void RemoveActiveTween(Tween tween)
@@ -263,13 +300,16 @@ namespace FlT
 
         private static Sequence GetSequenceFromPool()
         {
-            return sequencePool.Count == 0 ? new() : sequencePool.Pop();
+            if (sequencePool.Count == 0) { sequencePoolMisses++; return new(); }
+            sequencePoolHits++;
+            return sequencePool.Pop();
         }
 
         private static void ReturnSequenceToPool(Sequence sequence)
         {
             sequence.ResetData();
             sequencePool.Push(sequence);
+            sequencePoolTotalReturns++;
         }
 
         public static void KillSequences()

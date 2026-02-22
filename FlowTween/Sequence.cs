@@ -6,7 +6,7 @@ namespace FlT
 {
     public class Sequence
     {
-        internal struct SequenceStep
+        public struct SequenceStep
         {
             public Tween tween;
             public float startTime;
@@ -25,6 +25,14 @@ namespace FlT
         
         public bool IsCompleted    => completed;
         public bool IsPaused       => paused;
+
+        // ── Debug surface ──────────────────────────────────────────────────────
+        /// <summary>Read-only view of sequence steps for the editor debugger.</summary>
+        public IReadOnlyList<SequenceStep> DbgSteps      => steps;
+        public IReadOnlyList<(float time, Action callback)> DbgCallbacks => callbacks;
+        public int  DbgActiveStepIndex => activeStepIndex;
+        public int  DbgLoops           => loops;
+        public int  DbgCurrentLoop     => currentLoop;
 
         private readonly List<SequenceStep> steps = new();
         private readonly List<(float time, Action callback)> callbacks = new();

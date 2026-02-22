@@ -20,7 +20,20 @@ namespace FlT
         public bool IsPaused    => paused;
         public bool IsCompleted => completed;
 
-        internal bool IsRelative => relative;
+        internal bool IsRelative      => relative;
+
+        // ── Debug / inspector surface ──────────────────────────────────────────
+        public bool   DbgUseUnscaledTime => useUnscaledTime;
+        public bool   DbgUseSpeedBase    => useSpeedBase;
+        public bool   DbgHasPending      => pendingTween != null;
+        public bool   DbgIsPopped        => popped;
+        public int    DbgLoops           => loops;
+        public int    DbgCurrentLoop     => currentLoop;
+        public float  DbgPlaybackDir     => playbackDirection;
+        public float  DbgDelayElapsed    => delayElapsed;
+        public bool   DbgStarted         => started;
+        public string DbgInterpolatorType => interpolator?.GetType().Name;
+        public Tween  DbgPendingTween     => pendingTween;
 
         public string Group
         {

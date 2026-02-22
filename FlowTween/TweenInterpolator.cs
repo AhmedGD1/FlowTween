@@ -12,6 +12,19 @@ namespace FlT
         void ReturnToPool();
         bool TrySetFrom<T>(T value);
         bool TryGetDistance(out float distance);
+        /// <summary>Human-readable description of the interpolated value type and current state.</summary>
+        string DbgValueDescription { get; }
+    }
+
+    /// <summary>Editor-only: per-type pool size registry so the debugger can display them.</summary>
+    public static class InterpolatorPoolStats
+    {
+        private static readonly Dictionary<string, Func<int>> _sizeGetters = new();
+
+        public static void Register(string name, Func<int> sizeGetter) =>
+            _sizeGetters[name] = sizeGetter;
+
+        public static IReadOnlyDictionary<string, Func<int>> All => _sizeGetters;
     }
 
     internal sealed class StructTweenInterpolator<TTarget, TValue, TInterp> : ITweenInterpolator
@@ -26,6 +39,19 @@ namespace FlT
         private Tween owner;
 
         private bool hasFromOverride;
+
+        public string DbgValueDescription =>
+            $"{typeof(TValue).Name}  {FormatVal(from)} → {FormatVal(to)}";
+
+        private static string FormatVal(TValue v) => v switch
+        {
+            Vector3    vv => $"({vv.x:0.00},{vv.y:0.00},{vv.z:0.00})",
+            Vector2    vv => $"({vv.x:0.00},{vv.y:0.00})",
+            Color      c  => $"rgba({c.r:0.00},{c.g:0.00},{c.b:0.00},{c.a:0.00})",
+            Quaternion q  => $"euler({q.eulerAngles:0.0})",
+            float      f  => f.ToString("0.0000"),
+            _             => v?.ToString() ?? "null"
+        };
                                 
         public void Setup(TTarget target, TValue to, Tween owner)
         {
@@ -74,6 +100,14 @@ namespace FlT
         }
 
         private static readonly Stack<StructTweenInterpolator<TTarget, TValue, TInterp>> TypedPool = new();
+
+        static StructTweenInterpolator()
+        {
+            // Register with the central stats so the debugger can enumerate all typed pools
+            string key = $"Struct<{typeof(TTarget).Name},{typeof(TValue).Name}>";
+            InterpolatorPoolStats.Register(key, () => TypedPool.Count);
+        }
+
         public static StructTweenInterpolator<TTarget, TValue, TInterp> Get()
             => TypedPool.Count > 0 ? TypedPool.Pop() : new();
 
@@ -113,6 +147,7 @@ namespace FlT
             this.onUpdate = onUpdate;
         }
 
+        public string DbgValueDescription => $"float  {from:0.0000} → {to:0.0000}";
         public void OnStart() { }
 
         public void OnTick(float t)
@@ -130,6 +165,8 @@ namespace FlT
         public bool TrySetFrom<T>(T value) => false;
 
         private static readonly Stack<FloatInterpolator> pool = new();
+
+        static FloatInterpolator() => InterpolatorPoolStats.Register("FloatInterpolator", () => pool.Count);
 
         public static FloatInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
@@ -154,6 +191,7 @@ namespace FlT
             this.onUpdate = onUpdate;
         }
 
+        public string DbgValueDescription => $"int  {from} → {to}";
         public void OnStart() { }
 
         public void OnTick(float t)
@@ -171,6 +209,8 @@ namespace FlT
         public bool TrySetFrom<T>(T value) => false;
 
         private static readonly Stack<IntInterpolator> pool = new();
+
+        static IntInterpolator() => InterpolatorPoolStats.Register("IntInterpolator", () => pool.Count);
 
         public static IntInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
@@ -195,6 +235,7 @@ namespace FlT
             this.onUpdate = onUpdate;
         }
 
+        public string DbgValueDescription => $"Vector2  ({from.x:0.00},{from.y:0.00}) → ({to.x:0.00},{to.y:0.00})";
         public void OnStart() { }
 
         public void OnTick(float t)
@@ -212,6 +253,8 @@ namespace FlT
         public bool TrySetFrom<T>(T value) => false;
 
         private static readonly Stack<Vector2Interpolator> pool = new();
+
+        static Vector2Interpolator() => InterpolatorPoolStats.Register("Vector2Interpolator", () => pool.Count);
 
         public static Vector2Interpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
@@ -236,6 +279,7 @@ namespace FlT
             this.onUpdate = onUpdate;
         }
 
+        public string DbgValueDescription => $"Vector3  ({from.x:0.00},{from.y:0.00},{from.z:0.00}) → ({to.x:0.00},{to.y:0.00},{to.z:0.00})";
         public void OnStart() { }
 
         public void OnTick(float t)
@@ -253,6 +297,8 @@ namespace FlT
         public bool TrySetFrom<T>(T value) => false;
 
         private static readonly Stack<Vector3Interpolator> pool = new();
+
+        static Vector3Interpolator() => InterpolatorPoolStats.Register("Vector3Interpolator", () => pool.Count);
 
         public static Vector3Interpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
@@ -277,6 +323,9 @@ namespace FlT
             this.onUpdate = onUpdate;
         }
 
+        public string DbgValueDescription =>
+            $"Color  rgba({from.r:0.00},{from.g:0.00},{from.b:0.00},{from.a:0.00}) → rgba({to.r:0.00},{to.g:0.00},{to.b:0.00},{to.a:0.00})";
+
         public void OnStart() { }
 
         public void OnTick(float t)
@@ -294,6 +343,8 @@ namespace FlT
         public bool TrySetFrom<T>(T value) => false;
 
         private static readonly Stack<ColorInterpolator> pool = new();
+
+        static ColorInterpolator() => InterpolatorPoolStats.Register("ColorInterpolator", () => pool.Count);
 
         public static ColorInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
