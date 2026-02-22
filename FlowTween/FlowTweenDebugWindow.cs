@@ -737,7 +737,7 @@ public class FlowTweenDebugWindow : EditorWindow
         GUILayout.Space(4);
         EditorGUI.BeginChangeCheck();
         showPlaying   = GUILayout.Toggle(showPlaying,  "▶",  EditorStyles.toolbarButton, GUILayout.Width(24));
-        showPaused    = GUILayout.Toggle(showPaused,   "⏸", EditorStyles.toolbarButton, GUILayout.Width(24));
+        showPaused    = GUILayout.Toggle(showPaused,   "P", EditorStyles.toolbarButton, GUILayout.Width(24));
         showCompleted = GUILayout.Toggle(showCompleted,"✓",  EditorStyles.toolbarButton, GUILayout.Width(24));
         showWarnings  = GUILayout.Toggle(showWarnings, "⚠",  EditorStyles.toolbarButton, GUILayout.Width(24));
         var cp = GUI.backgroundColor;
@@ -772,7 +772,7 @@ public class FlowTweenDebugWindow : EditorWindow
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label($"  {selectedTweens.Count} selected:", EditorStyles.miniLabel, GUILayout.Width(90));
             if (GUILayout.Button("▶ Resume",   EditorStyles.toolbarButton)) BulkAction(t => t.Resume());
-            if (GUILayout.Button("⏸ Pause",   EditorStyles.toolbarButton)) BulkAction(t => t.Pause());
+            if (GUILayout.Button("P Pause",   EditorStyles.toolbarButton)) BulkAction(t => t.Pause());
             if (GUILayout.Button("✓ Complete", EditorStyles.toolbarButton)) BulkAction(t => t.Complete());
             if (GUILayout.Button("✕ Kill",     EditorStyles.toolbarButton))
             {
@@ -1191,7 +1191,7 @@ public class FlowTweenDebugWindow : EditorWindow
         // Controls
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("▶",  EditorStyles.miniButtonLeft,  GUILayout.Width(26))) { tween.Resume();   LogEvent(EventKind.Resume,   tween, "Resumed"); }
-        if (GUILayout.Button("⏸", EditorStyles.miniButtonMid,   GUILayout.Width(26))) { tween.Pause();    LogEvent(EventKind.Pause,    tween, "Paused"); }
+        if (GUILayout.Button("P", EditorStyles.miniButtonMid,   GUILayout.Width(26))) { tween.Pause();    LogEvent(EventKind.Pause,    tween, "Paused"); }
         if (GUILayout.Button("↩",  EditorStyles.miniButtonMid,   GUILayout.Width(26)))   tween.Restart();
         if (GUILayout.Button("✓",  EditorStyles.miniButtonMid,   GUILayout.Width(26))) { tween.Complete(); LogEvent(EventKind.Complete, tween, "Force complete"); AddToGraveyard(tween,"Completed"); }
         if (GUILayout.Button("✕",  EditorStyles.miniButtonRight, GUILayout.Width(26)))
@@ -1307,7 +1307,7 @@ public class FlowTweenDebugWindow : EditorWindow
                 // State label
                 string stateLabel = R_IsPopped(pending)   ? "⏳ waiting"
                                   : pending.IsCompleted   ? "✓ done"
-                                  : pending.IsPaused      ? "⏸ paused"
+                                  : pending.IsPaused      ? "P paused"
                                   :                         "▶ active";
 
                 EditorGUILayout.BeginHorizontal();
@@ -1566,7 +1566,7 @@ public class FlowTweenDebugWindow : EditorWindow
         // ── Controls ─────────────────────────────────────────────────────────
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("▶",  EditorStyles.miniButtonLeft,  GUILayout.Width(30))) seq.Resume();
-        if (GUILayout.Button("⏸", EditorStyles.miniButtonMid,   GUILayout.Width(30))) seq.Pause();
+        if (GUILayout.Button("P", EditorStyles.miniButtonMid,   GUILayout.Width(30))) seq.Pause();
         if (GUILayout.Button("✕",  EditorStyles.miniButtonRight, GUILayout.Width(30)))
         {
             if (!confirmKill || EditorUtility.DisplayDialog("Kill Sequence","Kill this sequence?","Kill","Cancel")) seq.Kill();
@@ -1778,13 +1778,13 @@ public class FlowTweenDebugWindow : EditorWindow
             GUILayout.Label(gname, labelBoldStyle);
             GUILayout.Space(6);
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            GUILayout.Label($"{members.Count} tweens  ▶{playingCount} ⏸{pausedCount}", EditorStyles.miniLabel);
+            GUILayout.Label($"{members.Count} tweens  ▶{playingCount} P{pausedCount}", EditorStyles.miniLabel);
             GUI.color = Color.white;
             GUILayout.FlexibleSpace();
             if (isNamed)
             {
                 if (GUILayout.Button("▶",  EditorStyles.miniButtonLeft,  GUILayout.Width(26))) FlowTween.ResumeGroup(gname);
-                if (GUILayout.Button("⏸", EditorStyles.miniButtonMid,   GUILayout.Width(26))) FlowTween.PauseGroup(gname);
+                if (GUILayout.Button("P", EditorStyles.miniButtonMid,   GUILayout.Width(26))) FlowTween.PauseGroup(gname);
                 if (GUILayout.Button("✕",  EditorStyles.miniButtonRight, GUILayout.Width(26)))
                 {
                     if (!confirmKill || EditorUtility.DisplayDialog("Kill Group", $"Kill '{gname}'?","Kill","Cancel"))
@@ -2112,7 +2112,7 @@ public class FlowTweenDebugWindow : EditorWindow
         eventLogShowKill        = GUILayout.Toggle(eventLogShowKill,       "Kill",   EditorStyles.toolbarButton, GUILayout.Width(35));
         eventLogShowLoop        = GUILayout.Toggle(eventLogShowLoop,       "Loop",   EditorStyles.toolbarButton, GUILayout.Width(36));
         eventLogShowWarning     = GUILayout.Toggle(eventLogShowWarning,    "⚠",     EditorStyles.toolbarButton, GUILayout.Width(26));
-        eventLogShowPauseResume = GUILayout.Toggle(eventLogShowPauseResume,"⏸/▶",  EditorStyles.toolbarButton, GUILayout.Width(42));
+        eventLogShowPauseResume = GUILayout.Toggle(eventLogShowPauseResume,"P/▶",  EditorStyles.toolbarButton, GUILayout.Width(42));
         GUILayout.Space(4);
         GUILayout.Label("🔍", GUILayout.Width(16));
         eventLogSearch = EditorGUILayout.TextField(eventLogSearch, EditorStyles.toolbarSearchField, GUILayout.Width(100));
@@ -2269,7 +2269,7 @@ public class FlowTweenDebugWindow : EditorWindow
     private void DrawProfilerTab()
     {
         EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-        profilerPaused = GUILayout.Toggle(profilerPaused, profilerPaused ? "⏸ Paused" : "▶ Recording",
+        profilerPaused = GUILayout.Toggle(profilerPaused, profilerPaused ? "P Paused" : "▶ Recording",
             EditorStyles.toolbarButton, GUILayout.Width(90));
         showPeakWatermarks = GUILayout.Toggle(showPeakWatermarks, "Peak Markers", EditorStyles.toolbarButton, GUILayout.Width(88));
         GUILayout.FlexibleSpace();
@@ -2508,14 +2508,14 @@ public class FlowTweenDebugWindow : EditorWindow
         EditorGUILayout.LabelField("Global Controls", sectionHeaderStyle);
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("▶ Resume All"))   FlowTween.ResumeAll();
-        if (GUILayout.Button("⏸ Pause All"))   FlowTween.PauseAll();
+        if (GUILayout.Button("P Pause All"))   FlowTween.PauseAll();
         if (GUILayout.Button("✓ Complete All")) FlowTween.CompleteAll();
         if (GUILayout.Button("✕ Kill All"))
             if (EditorUtility.DisplayDialog("Kill All","Kill all tweens?","Yes","Cancel")) FlowTween.KillAll();
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("▶ Resume Seq"))  FlowTween.ResumeSequences();
-        if (GUILayout.Button("⏸ Pause Seq"))  FlowTween.PauseSequences();
+        if (GUILayout.Button("P Pause Seq"))  FlowTween.PauseSequences();
         if (GUILayout.Button("✕ Kill Seq"))
             if (EditorUtility.DisplayDialog("Kill Seq","Kill all sequences?","Yes","Cancel")) FlowTween.KillSequences();
         EditorGUILayout.EndHorizontal();

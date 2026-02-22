@@ -179,6 +179,7 @@ namespace FlT
                     ReturnToPool(t);
                     activeTweens[i] = activeTweens[^1];
                     activeTweens.RemoveAt(activeTweens.Count - 1);
+                    i--;
                 }
             }
 
@@ -192,6 +193,7 @@ namespace FlT
                     ReturnSequenceToPool(s);
                     activeSequences[i] = activeSequences[^1];
                     activeSequences.RemoveAt(activeSequences.Count - 1);
+                    i--;
                 }
             }
 
@@ -222,6 +224,7 @@ namespace FlT
                     ReturnToPool(t);
                     activeFixedTweens[i] = activeFixedTweens[^1];
                     activeFixedTweens.RemoveAt(activeFixedTweens.Count - 1);
+                    i--;
                 }
             }
         }
@@ -250,7 +253,7 @@ namespace FlT
                 if (go != null && go.scene == scene)
                 {
                     ReturnToPool(list[i]);
-                    list.RemoveAt(i);
+                    SwapRemove(list, list[i]);
                 }
             }
         }
@@ -334,9 +337,17 @@ namespace FlT
         {
             switch (tween.UpdateMode)
             {
-                case Tween.TweenUpdateMode.Idle:  activeTweens.Remove(tween);      break;
-                case Tween.TweenUpdateMode.Fixed: activeFixedTweens.Remove(tween); break;
+                case Tween.TweenUpdateMode.Idle:  SwapRemove(activeTweens,      tween); break;
+                case Tween.TweenUpdateMode.Fixed: SwapRemove(activeFixedTweens, tween); break;
             }
+        }
+
+        private static void SwapRemove(List<Tween> list, Tween tween)
+        {
+            int index = list.IndexOf(tween);
+            if (index < 0) return;
+            list[index] = list[^1];
+            list.RemoveAt(list.Count - 1);
         }
 
         public static void AddActiveTween(Tween tween)
@@ -376,10 +387,24 @@ namespace FlT
             sequencePool.Push(sequence);
             sequencePoolTotalReturns++;
         }
+        
+        public static void KillSequences()
+        {
+            for (int i = activeSequences.Count - 1; i >= 0; i--)
+                activeSequences[i].Kill();
+        }
 
-        public static void KillSequences()   { foreach (var s in activeSequences) s.Kill();   }
-        public static void PauseSequences()  { foreach (var s in activeSequences) s.Pause();  }
-        public static void ResumeSequences() { foreach (var s in activeSequences) s.Resume(); }
+        public static void PauseSequences()
+        {
+            for (int i = activeSequences.Count - 1; i >= 0; i--)
+                activeSequences[i].Pause();
+        }
+
+        public static void ResumeSequences()
+        {
+            for (int i = activeSequences.Count - 1; i >= 0; i--)
+                activeSequences[i].Resume();
+        }
 
         // ═════════════════════════════════════════════════════════════════════
         //  Queries & Global Controls
@@ -402,10 +427,29 @@ namespace FlT
             for (int i = 0; i < activeSequences.Count; i++) action(activeSequences[i]);
         }
 
-        public static void KillAll()     => ForEachActiveTween(killAction);
-        public static void PauseAll()    => ForEachActiveTween(pauseAction);
-        public static void ResumeAll()   => ForEachActiveTween(resumeAction);
-        public static void CompleteAll() => ForEachActiveTween(completeAction);
+        public static void KillAll()
+        {
+            for (int i = activeTweens.Count - 1; i >= 0; i--)
+                activeTweens[i].Kill();
+        }
+
+        public static void PauseAll()
+        {
+            for (int i = activeTweens.Count - 1; i >= 0; i--)
+                activeTweens[i].Pause();
+        }
+
+        public static void ResumeAll()
+        {
+            for (int i = activeTweens.Count - 1; i >= 0; i--)
+                activeTweens[i].Resume();
+        }
+
+        public static void CompleteAll()
+        {
+            for (int i = activeTweens.Count - 1; i >= 0; i--)
+                activeTweens[i].Complete();
+        }
 
         public static void KillTarget(UnityEngine.Object target)
         {

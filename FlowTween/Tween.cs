@@ -336,9 +336,6 @@ namespace FlT
                 return;
             }
 
-            Elapsed += dt * TimeScale * playbackDirection;
-            Elapsed = Mathf.Clamp(Elapsed, 0f, Duration);
-
             if (!started)
             {
                 started = true;
@@ -351,6 +348,9 @@ namespace FlT
                     if (currentLoop == 0) Elapsed = 0f;
                 }
             }
+
+            Elapsed += dt * TimeScale * playbackDirection;
+            Elapsed = Mathf.Clamp(Elapsed, 0f, Duration);
 
             float normalized = Mathf.Clamp01(Elapsed / Duration);
             float eased = customCurve != null ? customCurve.Evaluate(normalized) : EaseMath.Evaluate(normalized, transition, ease);

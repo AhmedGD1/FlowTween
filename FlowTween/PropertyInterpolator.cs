@@ -94,6 +94,42 @@ namespace FlT
         }
     }
 
+    internal readonly struct LocalPositionXInterpolator : IPropertyInterpolator<Transform, float>
+    {
+        public float GetValue(Transform target) => target.localPosition.x;
+
+        public void SetValue(Transform target, float from, float to, float pct)
+        {
+            Vector3 localPos = target.localPosition;
+            localPos.x = Mathf.LerpUnclamped(from, to, pct);
+            target.localPosition = localPos;
+        }
+    }
+
+    internal readonly struct LocalPositionYInterpolator : IPropertyInterpolator<Transform, float>
+    {
+        public float GetValue(Transform target) => target.localPosition.y;
+
+        public void SetValue(Transform target, float from, float to, float pct)
+        {
+            Vector3 localPos = target.localPosition;
+            localPos.y = Mathf.LerpUnclamped(from, to, pct);
+            target.localPosition = localPos;
+        }
+    }
+
+    internal readonly struct LocalPositionZInterpolator : IPropertyInterpolator<Transform, float>
+    {
+        public float GetValue(Transform target) => target.localPosition.z;
+
+        public void SetValue(Transform target, float from, float to, float pct)
+        {
+            Vector3 localPos = target.localPosition;
+            localPos.z = Mathf.LerpUnclamped(from, to, pct);
+            target.localPosition = localPos;
+        }
+    }
+
     // ─── RectTransform ────────────────────────────────────────────────────────
     internal readonly struct AnchoredPositionInterpolator : IPropertyInterpolator<RectTransform, Vector2>
     {
@@ -190,6 +226,14 @@ namespace FlT
             => a.pitch = Mathf.LerpUnclamped(from, to, t);
     }
 
+
+    internal readonly struct AudioPanStereoInterpolator : IPropertyInterpolator<AudioSource, float>
+    {
+        public float GetValue(AudioSource a) => a.panStereo;
+        public void SetValue(AudioSource a, float from, float to, float progress)
+            => a.panStereo = Mathf.LerpUnclamped(from, to, progress);
+    }
+
     // ─── Light ────────────────────────────────────────────────────────────────
     internal readonly struct LightIntensityInterpolator : IPropertyInterpolator<Light, float>
     {
@@ -225,6 +269,13 @@ namespace FlT
         public float GetValue(Camera c) => c.orthographicSize;
         public void SetValue(Camera c, float from, float to, float t)
             => c.orthographicSize = Mathf.LerpUnclamped(from, to, t);
+    }
+
+    internal readonly struct CameraBackgroundColorInterpolator : IPropertyInterpolator<Camera, Color>
+    {
+        public Color GetValue(Camera c) => c.backgroundColor;
+        public void SetValue(Camera c, Color from, Color to, float progress)
+            => c.backgroundColor = Color.LerpUnclamped(from, to, progress);
     }
 
     // TMP Pro
@@ -302,5 +353,27 @@ namespace FlT
         public float GetValue(Rigidbody2D rb) => rb.rotation;
         public void SetValue(Rigidbody2D rb, float from, float to, float t)
             => rb.MoveRotation(Mathf.LerpUnclamped(from, to, t));
+    }
+
+    // Pivot & Offset
+    internal readonly struct PivotInterpolator : IPropertyInterpolator<RectTransform, Vector2>
+    {
+        public Vector2 GetValue(RectTransform t) => t.pivot;
+        public void SetValue(RectTransform t, Vector2 from, Vector2 to, float progress)
+            => t.pivot = Vector2.LerpUnclamped(from, to, progress);
+    }
+
+    internal readonly struct OffsetMinInterpolator : IPropertyInterpolator<RectTransform, Vector2>
+    {
+        public Vector2 GetValue(RectTransform t) => t.offsetMin;
+        public void SetValue(RectTransform t, Vector2 from, Vector2 to, float progress)
+            => t.offsetMin = Vector2.LerpUnclamped(from, to, progress);
+    }
+
+    internal readonly struct OffsetMaxInterpolator : IPropertyInterpolator<RectTransform, Vector2>
+    {
+        public Vector2 GetValue(RectTransform t) => t.offsetMax;
+        public void SetValue(RectTransform t, Vector2 from, Vector2 to, float progress)
+            => t.offsetMax = Vector2.LerpUnclamped(from, to, progress);
     }
 }

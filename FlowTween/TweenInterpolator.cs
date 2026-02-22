@@ -355,4 +355,191 @@ namespace FlT
             return true;
         }
     }
+
+    internal sealed class MaterialFloatInterpolator : ITweenInterpolator
+    {
+        private Renderer renderer;
+        private string property;
+        private float from;
+        private float to;
+
+        public void Setup(Renderer renderer, string property, float to)
+        {
+            this.renderer = renderer;
+            this.property = property;
+            this.to = to;
+        }
+
+        public string DbgValueDescription => $"Material.{property} float {from:0.0000} → {to:0.0000}";
+        public void OnStart() => from = renderer.material.GetFloat(property);
+        public void OnTick(float t) => renderer.material.SetFloat(property, Mathf.LerpUnclamped(from, to, t));
+        public void Reset() { renderer = null; property = null; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = Mathf.Abs(to - from); return true; }
+
+        private static readonly Stack<MaterialFloatInterpolator> pool = new();
+        static MaterialFloatInterpolator() => InterpolatorPoolStats.Register("MaterialFloatInterpolator", () => pool.Count);
+        public static MaterialFloatInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    internal sealed class MaterialColorInterpolator : ITweenInterpolator
+    {
+        private Renderer renderer;
+        private string property;
+        private Color from;
+        private Color to;
+
+        public void Setup(Renderer renderer, string property, Color to)
+        {
+            this.renderer = renderer;
+            this.property = property;
+            this.to = to;
+        }
+
+        public string DbgValueDescription => $"Material.{property} color";
+        public void OnStart() => from = renderer.material.GetColor(property);
+        public void OnTick(float t) => renderer.material.SetColor(property, Color.LerpUnclamped(from, to, t));
+        public void Reset() { renderer = null; property = null; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = 0f; return false; }
+
+        private static readonly Stack<MaterialColorInterpolator> pool = new();
+        static MaterialColorInterpolator() => InterpolatorPoolStats.Register("MaterialColorInterpolator", () => pool.Count);
+        public static MaterialColorInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    internal sealed class MaterialVectorInterpolator : ITweenInterpolator
+    {
+        private Renderer renderer;
+        private string property;
+        private Vector4 from;
+        private Vector4 to;
+
+        public void Setup(Renderer renderer, string property, Vector4 to)
+        {
+            this.renderer = renderer;
+            this.property = property;
+            this.to = to;
+        }
+
+        public string DbgValueDescription => $"Material.{property} vector";
+        public void OnStart() => from = renderer.material.GetVector(property);
+        public void OnTick(float t) => renderer.material.SetVector(property, Vector4.LerpUnclamped(from, to, t));
+        public void Reset() { renderer = null; property = null; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = 0f; return false; }
+
+        private static readonly Stack<MaterialVectorInterpolator> pool = new();
+        static MaterialVectorInterpolator() => InterpolatorPoolStats.Register("MaterialVectorInterpolator", () => pool.Count);
+        public static MaterialVectorInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    internal sealed class CameraRectInterpolator : ITweenInterpolator
+    {
+        private Camera camera;
+        private Rect from;
+        private Rect to;
+
+        public void Setup(Camera camera, Rect to) { this.camera = camera; this.to = to; }
+
+        public string DbgValueDescription => $"Camera.rect";
+        public void OnStart() => from = camera.rect;
+        public void OnTick(float t) => camera.rect = new Rect(
+            Mathf.LerpUnclamped(from.x,      to.x,      t),
+            Mathf.LerpUnclamped(from.y,      to.y,      t),
+            Mathf.LerpUnclamped(from.width,  to.width,  t),
+            Mathf.LerpUnclamped(from.height, to.height, t));
+        public void Reset() { camera = null; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = 0f; return false; }
+
+        private static readonly Stack<CameraRectInterpolator> pool = new();
+        static CameraRectInterpolator() => InterpolatorPoolStats.Register("CameraRectInterpolator", () => pool.Count);
+        public static CameraRectInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    internal sealed class MaterialTilingInterpolator : ITweenInterpolator
+    {
+        private Renderer renderer;
+        private string property;
+        private Vector2 from;
+        private Vector2 to;
+
+        public void Setup(Renderer renderer, string property, Vector2 to)
+        {
+            this.renderer = renderer;
+            this.property = property;
+            this.to = to;
+        }
+
+        public string DbgValueDescription => $"Material.{property} tiling";
+        public void OnStart() => from = renderer.material.GetTextureScale(property);
+        public void OnTick(float t) => renderer.material.SetTextureScale(property, Vector2.LerpUnclamped(from, to, t));
+        public void Reset() { renderer = null; property = null; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = 0f; return false; }
+
+        private static readonly Stack<MaterialTilingInterpolator> pool = new();
+        static MaterialTilingInterpolator() => InterpolatorPoolStats.Register("MaterialTilingInterpolator", () => pool.Count);
+        public static MaterialTilingInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    internal sealed class MaterialOffsetInterpolator : ITweenInterpolator
+    {
+        private Renderer renderer;
+        private string property;
+        private Vector2 from;
+        private Vector2 to;
+
+        public void Setup(Renderer renderer, string property, Vector2 to)
+        {
+            this.renderer = renderer;
+            this.property = property;
+            this.to = to;
+        }
+
+        public string DbgValueDescription => $"Material.{property} offset";
+        public void OnStart() => from = renderer.material.GetTextureOffset(property);
+        public void OnTick(float t) => renderer.material.SetTextureOffset(property, Vector2.LerpUnclamped(from, to, t));
+        public void Reset() { renderer = null; property = null; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = 0f; return false; }
+
+        private static readonly Stack<MaterialOffsetInterpolator> pool = new();
+        static MaterialOffsetInterpolator() => InterpolatorPoolStats.Register("MaterialOffsetInterpolator", () => pool.Count);
+        public static MaterialOffsetInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    internal sealed class BlendShapeInterpolator : ITweenInterpolator
+    {
+        private SkinnedMeshRenderer renderer;
+        private int index;
+        private float from;
+        private float to;
+
+        public void Setup(SkinnedMeshRenderer renderer, int index, float to)
+        {
+            this.renderer = renderer;
+            this.index    = index;
+            this.to       = to;
+        }
+
+        public string DbgValueDescription => $"BlendShape[{index}]  {from:0.00} → {to:0.00}";
+        public void OnStart() => from = renderer.GetBlendShapeWeight(index);
+        public void OnTick(float t) => renderer.SetBlendShapeWeight(index, Mathf.LerpUnclamped(from, to, t));
+        public void Reset() { renderer = null; index = 0; from = default; to = default; }
+        public bool TrySetFrom<T>(T value) => false;
+        public bool TryGetDistance(out float distance) { distance = Mathf.Abs(to - from); return true; }
+
+        private static readonly Stack<BlendShapeInterpolator> pool = new();
+        static BlendShapeInterpolator() => InterpolatorPoolStats.Register("BlendShapeInterpolator", () => pool.Count);
+        public static BlendShapeInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public void ReturnToPool() { Reset(); pool.Push(this); }
+    }
 }
