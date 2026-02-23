@@ -39,21 +39,6 @@ namespace FlT
 
         #endregion
 
-        #region Delay
-
-        /// <summary>
-        /// Creates a tween that does nothing for <paramref name="delay"/> seconds, then fires <paramref name="onComplete"/>.
-        /// Useful for chaining with <see cref="Tween.Then"/> or inserting gaps in sequences.
-        /// </summary>
-        /// <param name="delay">How long to wait in seconds.</param>
-        /// <param name="onComplete">Optional callback fired when the delay ends.</param>
-        public static Tween FlowDelay(float delay, Action onComplete) =>
-            FlowVirtual.Float(0f, 1f, delay, OnDelayUpdate).OnComplete(onComplete);
-
-        private static void OnDelayUpdate(float t) { }
-
-        #endregion
-
         #region Move Methods
 
         /// <summary>Moves a Transform to a world-space position over <paramref name="duration"/> seconds.</summary>
@@ -328,10 +313,9 @@ namespace FlT
         /// <param name="duration">Duration in seconds.</param>
         public static Tween FlowGradient(this SpriteRenderer spriteRenderer, Gradient gradient, float duration)
         {
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                spriteRenderer.color = gradient.Evaluate(t);
-            });
+            var interp = SpriteGradientInterpolator.Get();
+            interp.Setup(spriteRenderer, gradient);
+            return FlowTween.MakeTween(duration, interp, spriteRenderer);
         }
 
         #endregion
@@ -354,10 +338,7 @@ namespace FlT
         {
             var interp = MaterialFloatInterpolator.Get();
             interp.Setup(renderer, property, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = renderer;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, renderer);
         }
 
         /// <summary>Animates a named color property on a <see cref="Renderer"/> material.</summary>
@@ -369,10 +350,7 @@ namespace FlT
         {
             var interp = MaterialColorInterpolator.Get();
             interp.Setup(renderer, property, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = renderer;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, renderer);
         }
 
         /// <summary>Animates a named Vector4 property on a <see cref="Renderer"/> material.</summary>
@@ -384,10 +362,7 @@ namespace FlT
         {
             var interp = MaterialVectorInterpolator.Get();
             interp.Setup(renderer, property, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = renderer;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, renderer);
         }
 
         /// <summary>
@@ -402,10 +377,7 @@ namespace FlT
         {
             var interp = MaterialTilingInterpolator.Get();
             interp.Setup(renderer, property, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = renderer;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, renderer);
         }
 
         /// <summary>
@@ -420,10 +392,7 @@ namespace FlT
         {
             var interp = MaterialOffsetInterpolator.Get();
             interp.Setup(renderer, property, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = renderer;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, renderer);
         }
 
         #endregion
@@ -523,10 +492,7 @@ namespace FlT
         {
             var interp = CameraRectInterpolator.Get();
             interp.Setup(camera, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = camera;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, camera);
         }
 
         #endregion
@@ -565,10 +531,9 @@ namespace FlT
         /// <param name="duration">Duration in seconds.</param>
         public static Tween FlowGradient(this Graphic graphic, Gradient gradient, float duration)
         {
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                graphic.color = gradient.Evaluate(t);
-            });
+            var interp = GradientInterpolator.Get();
+            interp.Setup(graphic, gradient);
+            return FlowTween.MakeTween(duration, interp, graphic);
         }
 
         /// <summary>Animates the fill amount of a UI <see cref="Image"/>.</summary>
@@ -615,10 +580,9 @@ namespace FlT
         /// <param name="format">Standard numeric format string (e.g. <c>"0"</c>, <c>"0.00"</c>). Default is <c>"0"</c>.</param>
         public static Tween FlowCounter(this TMPro.TMP_Text text, float from, float to, float duration, string format = "0")
         {
-            return FlowVirtual.Float(from, to, duration, value =>
-            {
-                text.text = value.ToString(format);
-            });
+            var interp = TmpCounterFloatInterpolator.Get();
+            interp.Setup(text, from, to, format);
+            return FlowTween.MakeTween(duration, interp, text);
         }
 
         /// <summary>
@@ -630,10 +594,9 @@ namespace FlT
         /// <param name="duration">Duration in seconds.</param>
         public static Tween FlowCounter(this TMPro.TMP_Text text, int from, int to, float duration)
         {
-            return FlowVirtual.Int(from, to, duration, value =>
-            {
-                text.text = value.ToString();
-            });
+            var interp = TmpCounterIntInterpolator.Get();
+            interp.Setup(text, from, to);
+            return FlowTween.MakeTween(duration, interp, text);
         }
 
         /// <summary>
@@ -649,10 +612,9 @@ namespace FlT
         /// </param>
         public static Tween FlowCounter(this TMPro.TMP_Text text, float from, float to, float duration, Func<float, string> formatter)
         {
-            return FlowVirtual.Float(from, to, duration, value =>
-            {
-                text.text = formatter(value);
-            });
+            var interp = TmpCounterFormatterInterpolator.Get();
+            interp.Setup(text, from, to, formatter);
+            return FlowTween.MakeTween(duration, interp, text);
         }
 
         /// <summary>
@@ -664,11 +626,9 @@ namespace FlT
         /// <param name="duration">Duration in seconds.</param>
         public static Tween FlowCharacterColor(this TMPro.TMP_Text text, Color to, float duration)
         {
-            return FlowVirtual.Color(text.color, to, duration, value =>
-            {
-                text.color = value;
-                text.ForceMeshUpdate();
-            });
+            var interp = TmpCharacterColorInterpolator.Get();
+            interp.Setup(text, to);
+            return FlowTween.MakeTween(duration, interp, text);
         }
 
         /// <summary>
@@ -683,10 +643,11 @@ namespace FlT
             int totalChars = text.textInfo.characterCount;
             text.maxVisibleCharacters = 0;
 
-            return FlowVirtual.Int(0, totalChars, duration, value =>
-            {
-                text.maxVisibleCharacters = value;
-            }).OnComplete(onComplete);
+            var interp = TmpTypewriterInterpolator.Get();
+            interp.Setup(text, totalChars);
+            Tween tween = FlowTween.MakeTween(duration, interp, text);
+            if (onComplete != null) tween.OnComplete(onComplete);
+            return tween;
         }
 
         #endregion
@@ -768,17 +729,9 @@ namespace FlT
         public static Tween FlowJello(this Transform transform, float duration, float intensity = 0.25f, float frequency = 4f)
         {
             Vector3 startScale = transform.localScale;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float decay = 1f - t;
-                float wave  = Mathf.Sin(t * frequency * Mathf.PI * 2f) * intensity * decay;
-                transform.localScale = new Vector3(
-                    startScale.x + wave,
-                    startScale.y - wave,
-                    startScale.z
-                );
-            }).OnComplete(() => transform.localScale = startScale);
+            var interp = JelloInterpolator.Get();
+            interp.Setup(transform, startScale, intensity, frequency);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -830,13 +783,9 @@ namespace FlT
         public static Tween FlowWobbleRotate(this Transform transform, float duration, float strength = 20f, float frequency = 4f)
         {
             Quaternion startRot = transform.localRotation;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float decay = 1f - t;
-                float angle = Mathf.Sin(t * frequency * Mathf.PI * 2f) * strength * decay;
-                transform.localRotation = startRot * Quaternion.Euler(0f, 0f, angle);
-            }).OnComplete(() => transform.localRotation = startRot);
+            var interp = WobbleRotateInterpolator.Get();
+            interp.Setup(transform, startRot, strength, frequency);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -901,12 +850,9 @@ namespace FlT
         /// <param name="endVisible">Whether the renderer ends fully visible. Default is true.</param>
         public static Tween FlowBlink(this SpriteRenderer spriteRenderer, int blinks = 4, float blinkDuration = 0.1f, bool endVisible = true)
         {
-            return FlowVirtual.Int(0, blinks, blinkDuration * blinks, current =>
-            {
-                if (spriteRenderer != null && !spriteRenderer)
-                    return;
-                spriteRenderer.enabled = current % 2 == 0;
-            }).OnComplete(() => { if (spriteRenderer == null && !spriteRenderer) return; spriteRenderer.enabled = endVisible; } );
+            var interp = SpriteBlinkInterpolator.Get();
+            interp.Setup(spriteRenderer, blinks, endVisible);
+            return FlowTween.MakeTween(blinkDuration * blinks, interp, spriteRenderer);
         }
 
         /// <summary>
@@ -918,12 +864,9 @@ namespace FlT
         /// <param name="endVisible">Whether the renderer ends fully visible. Default is true.</param>
         public static Tween FlowBlink(this CanvasGroup canvasGroup, int blinks = 4, float blinkDuration = 0.1f, bool endVisible = true)
         {
-            return FlowVirtual.Int(0, blinks, blinkDuration * blinks, current =>
-            {
-                if (canvasGroup != null && !canvasGroup)
-                    return;
-                canvasGroup.enabled = current % 2 == 0;
-            }).OnComplete(() => { if (canvasGroup == null && !canvasGroup) return; canvasGroup.enabled = endVisible; } );
+            var interp = CanvasGroupBlinkInterpolator.Get();
+            interp.Setup(canvasGroup, blinks, endVisible);
+            return FlowTween.MakeTween(blinkDuration * blinks, interp, canvasGroup);
         }
 
         #endregion
@@ -988,13 +931,9 @@ namespace FlT
         public static Tween FlowFloat(this Transform transform, float amplitude = 0.2f, float frequency = 1f)
         {
             Vector3 origin = transform.localPosition;
-
-            return FlowVirtual.Float(0f, 1f, 1f / frequency, t =>
-            {
-                float y = Mathf.Sin(t * Mathf.PI * 2f) * amplitude;
-                transform.localPosition = new Vector3(origin.x, origin.y + y, origin.z);
-            }).SetLoops(-1, Tween.LoopType.Restart)
-              .OnComplete(() => transform.localPosition = origin);
+            var interp = FloatBobInterpolator.Get();
+            interp.Setup(transform, origin, amplitude);
+            return FlowTween.MakeTween(1f / frequency, interp, transform).SetLoops(-1, Tween.LoopType.Restart);
         }
 
         #endregion
@@ -1061,16 +1000,9 @@ namespace FlT
             Vector3 startPos = transform.position;
             float seedX = UnityEngine.Random.value * 10000f;
             float seedY = seedX + 131.73f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper    = Mathf.Lerp(strength, 0f, t);
-                float noiseTime = t * frequency;
-                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
-                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
-
-                transform.position = new Vector3(startPos.x + x, startPos.y + y, startPos.z);
-            }).OnComplete(() => transform.position = startPos);
+            var interp = Shake2DInterpolator.Get();
+            interp.Setup(transform, startPos, strength, frequency, seedX, seedY, false);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>Shakes a Transform in local-space XY using Perlin noise. Resets local position on completion.</summary>
@@ -1083,16 +1015,9 @@ namespace FlT
             Vector3 startPos = transform.localPosition;
             float seedX = UnityEngine.Random.value * 10000f;
             float seedY = seedX + 131.73f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper    = Mathf.Lerp(strength, 0f, t);
-                float noiseTime = t * frequency;
-                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
-                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
-
-                transform.localPosition = new Vector3(startPos.x + x, startPos.y + y, startPos.z);
-            }).OnComplete(() => transform.localPosition = startPos);
+            var interp = Shake2DInterpolator.Get();
+            interp.Setup(transform, startPos, strength, frequency, seedX, seedY, true);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -1110,17 +1035,9 @@ namespace FlT
             float seedX = UnityEngine.Random.value * 10000f;
             float seedY = seedX + 131.73f;
             float seedZ = seedX + 263.46f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper    = Mathf.Lerp(strength, 0f, t);
-                float noiseTime = t * frequency;
-                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
-                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
-                float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
-
-                transform.position = startPos + new Vector3(x, y, z);
-            }).OnComplete(() => transform.position = startPos);
+            var interp = Shake3DInterpolator.Get();
+            interp.Setup(transform, startPos, strength, frequency, seedX, seedY, seedZ, false);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>Shakes a Transform in local-space XYZ using Perlin noise. Resets local position on completion.</summary>
@@ -1134,17 +1051,9 @@ namespace FlT
             float seedX = UnityEngine.Random.value * 10000f;
             float seedY = seedX + 131.73f;
             float seedZ = seedX + 263.46f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper    = Mathf.Lerp(strength, 0f, t);
-                float noiseTime = t * frequency;
-                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
-                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
-                float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
-
-                transform.localPosition = startPos + new Vector3(x, y, z);
-            }).OnComplete(() => transform.localPosition = startPos);
+            var interp = Shake3DInterpolator.Get();
+            interp.Setup(transform, startPos, strength, frequency, seedX, seedY, seedZ, true);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -1162,17 +1071,9 @@ namespace FlT
             float seedX = UnityEngine.Random.value * 10000f;
             float seedY = seedX + 131.73f;
             float seedZ = seedX + 263.46f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper    = Mathf.Lerp(strength, 0f, t);
-                float noiseTime = t * frequency;
-                float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
-                float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
-                float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
-
-                transform.localRotation = startRot * Quaternion.Euler(x, y, z);
-            }).OnComplete(() => transform.localRotation = startRot);
+            var interp = ShakeRotation3DInterpolator.Get();
+            interp.Setup(transform, startRot, strength, frequency, seedX, seedY, seedZ);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>Shakes a Transform's local rotation around the Z axis only (2D screen shake).</summary>
@@ -1184,14 +1085,9 @@ namespace FlT
         {
             Quaternion startRot = transform.localRotation;
             float seed = UnityEngine.Random.value * 10000f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper = Mathf.Lerp(strength, 0f, t);
-                float z = (Mathf.PerlinNoise(t * frequency, seed) * 2f - 1f) * damper;
-
-                transform.localRotation = startRot * Quaternion.Euler(0f, 0f, z);
-            }).OnComplete(() => transform.localRotation = startRot);
+            var interp = ShakeRotation2DInterpolator.Get();
+            interp.Setup(transform, startRot, strength, frequency, seed);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>Shakes a Transform's local rotation around a specified world axis.</summary>
@@ -1204,14 +1100,9 @@ namespace FlT
         {
             Quaternion startRot = transform.localRotation;
             float seed = UnityEngine.Random.value * 10000f;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float damper = Mathf.Lerp(strength, 0f, t);
-                float angle  = (Mathf.PerlinNoise(t * frequency, seed) * 2f - 1f) * damper;
-
-                transform.localRotation = startRot * Quaternion.AngleAxis(angle, axis);
-            }).OnComplete(() => transform.localRotation = startRot);
+            var interp = ShakeRotationAxisInterpolator.Get();
+            interp.Setup(transform, startRot, axis, strength, frequency, seed);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -1230,12 +1121,9 @@ namespace FlT
         {
             Vector3 startPosition = transform.position;
             Vector3 punch3D       = new Vector3(punch.x, punch.y, 0f);
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float wave = Mathf.Sin(vibrato * Mathf.PI * t) * (1f - t);
-                transform.position = startPosition + punch3D * (wave * elasticity);
-            }).OnComplete(() => transform.position = startPosition);
+            var interp = PunchPosition2DInterpolator.Get();
+            interp.Setup(transform, startPosition, punch3D, vibrato, elasticity);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>
@@ -1249,17 +1137,9 @@ namespace FlT
         public static Tween FlowPunchScale2D(this Transform transform, float punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startScale = transform.localScale;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float wave   = Mathf.Sin(vibrato * Mathf.PI * t) * (1f - t);
-                float offset = wave * punch * elasticity;
-                transform.localScale = new Vector3(
-                    startScale.x + offset,
-                    startScale.y + offset,
-                    startScale.z
-                );
-            }).OnComplete(() => transform.localScale = startScale);
+            var interp = PunchScale2DInterpolator.Get();
+            interp.Setup(transform, startScale, punch, vibrato, elasticity);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -1277,12 +1157,9 @@ namespace FlT
         public static Tween FlowPunchPosition3D(this Transform transform, Vector3 punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startPosition = transform.position;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float wave = Mathf.Sin(vibrato * Mathf.PI * t) * (1f - t);
-                transform.position = startPosition + punch * (wave * elasticity);
-            }).OnComplete(() => transform.position = startPosition);
+            var interp = PunchPosition3DInterpolator.Get();
+            interp.Setup(transform, startPosition, punch, vibrato, elasticity);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>
@@ -1296,12 +1173,9 @@ namespace FlT
         public static Tween FlowPunchScale3D(this Transform transform, Vector3 punch, float duration, int vibrato = 10, float elasticity = 1f)
         {
             Vector3 startScale = transform.localScale;
-
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                float wave = Mathf.Sin(vibrato * Mathf.PI * t) * (1f - t);
-                transform.localScale = startScale + punch * (wave * elasticity);
-            }).OnComplete(() => transform.localScale = startScale);
+            var interp = PunchScale3DInterpolator.Get();
+            interp.Setup(transform, startScale, punch, vibrato, elasticity);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -1325,20 +1199,9 @@ namespace FlT
 
             Vector3 startPos = transform.position;
 
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                Vector3 pos = SampleCatmullRom(points, t, closedLoop, startPos);
-
-                if (orientToPath)
-                {
-                    Vector3 nextPos = SampleCatmullRom(points, Mathf.Min(t + 0.01f, 1f), closedLoop, startPos);
-                    Vector3 dir = nextPos - pos;
-                    if (dir != Vector3.zero)
-                        transform.rotation = Quaternion.LookRotation(dir);
-                }
-
-                transform.position = pos;
-            }).OnComplete(() => transform.position = closedLoop ? startPos : points[points.Length - 1]);
+            var interp = FlowPathInterpolator.Get();
+            interp.Setup(transform, points, startPos, closedLoop, orientToPath, false);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>
@@ -1350,64 +1213,16 @@ namespace FlT
         /// <param name="duration">Duration in seconds.</param>
         /// <param name="closedLoop">If true, the path loops back to the start local position. Default is false.</param>
         /// <param name="orientToPath">If true, the transform rotates to face its local direction of travel. Default is false.</param>
-        public static Tween FlowPathLocal(this Transform transform, Vector3[] waypoints, float duration,
-            bool closedLoop = false, bool orientToPath = false)
+        public static Tween FlowPathLocal(this Transform transform, Vector3[] waypoints, float duration, bool closedLoop = false, bool orientToPath = false)
         {
             Vector3[] points = new Vector3[waypoints.Length];
             System.Array.Copy(waypoints, points, waypoints.Length);
 
             Vector3 startPos = transform.localPosition;
 
-            return FlowVirtual.Float(0f, 1f, duration, t =>
-            {
-                Vector3 pos = SampleCatmullRom(points, t, closedLoop, startPos);
-
-                if (orientToPath)
-                {
-                    Vector3 nextPos = SampleCatmullRom(points, Mathf.Min(t + 0.01f, 1f), closedLoop, startPos);
-                    Vector3 dir = nextPos - pos;
-                    if (dir != Vector3.zero)
-                        transform.localRotation = Quaternion.LookRotation(dir);
-                }
-
-                transform.localPosition = pos;
-            }).OnComplete(() => transform.localPosition = closedLoop ? startPos : points[points.Length - 1]);
-        }
-
-        private static Vector3 SampleCatmullRom(Vector3[] points, float t, bool closed, Vector3 startPos)
-        {
-            int count    = points.Length + 1;
-            int segments = closed ? count : count - 1;
-            float scaled = t * segments;
-            int   index  = Mathf.Min(Mathf.FloorToInt(scaled), segments - 1);
-            float localT = scaled - index;
-
-            Vector3 p0 = GetPoint(index - 1, points, startPos, closed, count);
-            Vector3 p1 = GetPoint(index,     points, startPos, closed, count);
-            Vector3 p2 = GetPoint(index + 1, points, startPos, closed, count);
-            Vector3 p3 = GetPoint(index + 2, points, startPos, closed, count);
-
-            float t2 = localT * localT;
-            float t3 = t2 * localT;
-
-            return 0.5f * (
-                2f * p1 +
-                (-p0 + p2) * localT +
-                (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
-                (-p0 + 3f * p1 - 3f * p2 + p3) * t3
-            );
-        }
-
-        private static Vector3 GetPoint(int index, Vector3[] points, Vector3 startPos, bool closed, int count)
-        {
-            if (closed)
-            {
-                index = ((index % count) + count) % count;
-                return index == 0 ? startPos : points[index - 1];
-            }
-
-            index = Mathf.Clamp(index, 0, count - 1);
-            return index == 0 ? startPos : points[index - 1];
+            var interp = FlowPathInterpolator.Get();
+            interp.Setup(transform, points, startPos, closedLoop, orientToPath, true);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         #endregion
@@ -1426,10 +1241,7 @@ namespace FlT
         {
             var interp = BlendShapeInterpolator.Get();
             interp.Setup(renderer, shapeIndex, to);
-            Tween tween = FlowTween.GetTweenRaw(duration);
-            tween.SetInterpolator(interp);
-            tween.Target = renderer;
-            return tween;
+            return FlowTween.MakeTween(duration, interp, renderer);
         }
 
         #endregion
@@ -1445,13 +1257,9 @@ namespace FlT
         public static Tween FlowLookAt(this Transform transform, Func<Vector3> targetProvider, float duration, Vector3? upAxis = null)
         {
             Vector3 up = upAxis ?? Vector3.up;
-
-            return FlowVirtual.Float(0f, 1f, duration, _ =>
-            {
-                Vector3 dir = targetProvider() - transform.position;
-                if (dir != Vector3.zero)
-                    transform.rotation = Quaternion.LookRotation(dir, up);
-            });
+            var interp = LookAtInterpolator.Get();
+            interp.Setup(transform, targetProvider, up, false);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
 
         /// <summary>
@@ -1463,12 +1271,9 @@ namespace FlT
         /// <param name="upAxis">The up axis used for orientation. Defaults to <c>Vector3.up</c>.</param>
         public static Tween FlowLookAt2D(this Transform transform, Func<Vector3> targetProvider, float duration)
         {
-            return FlowVirtual.Float(0f, 1f, duration, _ =>
-            {
-                Vector3 dir = targetProvider() - transform.position;
-                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                transform.rotation = Quaternion.Euler(0f, 0f, angle);
-            });
+            var interp = LookAtInterpolator.Get();
+            interp.Setup(transform, targetProvider, Vector3.up, true);
+            return FlowTween.MakeTween(duration, interp, transform);
         }
         #endregion
     }

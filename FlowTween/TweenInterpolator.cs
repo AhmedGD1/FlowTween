@@ -14,6 +14,8 @@ namespace FlT
         bool TryGetDistance(out float distance);
         /// <summary>Human-readable description of the interpolated value type and current state.</summary>
         string DbgValueDescription { get; }
+
+        void OnComplete();
     }
 
     /// <summary>Editor-only: per-type pool size registry so the debugger can display them.</summary>
@@ -52,6 +54,8 @@ namespace FlT
             float      f  => f.ToString("0.0000"),
             _             => v?.ToString() ?? "null"
         };
+
+        public void OnComplete() { }
                                 
         public void Setup(TTarget target, TValue to, Tween owner)
         {
@@ -140,6 +144,8 @@ namespace FlT
         private float to;
         private Action<float> onUpdate;
 
+        public void OnComplete() { }
+
         public void Setup(float from, float to, Action<float> onUpdate)
         {
             this.from     = from;
@@ -193,6 +199,7 @@ namespace FlT
 
         public string DbgValueDescription => $"int  {from} → {to}";
         public void OnStart() { }
+        public void OnComplete() { }
 
         public void OnTick(float t)
         {
@@ -237,6 +244,7 @@ namespace FlT
 
         public string DbgValueDescription => $"Vector2  ({from.x:0.00},{from.y:0.00}) → ({to.x:0.00},{to.y:0.00})";
         public void OnStart() { }
+        public void OnComplete() { }
 
         public void OnTick(float t)
         {
@@ -281,6 +289,7 @@ namespace FlT
 
         public string DbgValueDescription => $"Vector3  ({from.x:0.00},{from.y:0.00},{from.z:0.00}) → ({to.x:0.00},{to.y:0.00},{to.z:0.00})";
         public void OnStart() { }
+        public void OnComplete() { }
 
         public void OnTick(float t)
         {
@@ -327,6 +336,7 @@ namespace FlT
             $"Color  rgba({from.r:0.00},{from.g:0.00},{from.b:0.00},{from.a:0.00}) → rgba({to.r:0.00},{to.g:0.00},{to.b:0.00},{to.a:0.00})";
 
         public void OnStart() { }
+        public void OnComplete() { }
 
         public void OnTick(float t)
         {
@@ -381,6 +391,8 @@ namespace FlT
         static MaterialFloatInterpolator() => InterpolatorPoolStats.Register("MaterialFloatInterpolator", () => pool.Count);
         public static MaterialFloatInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 
     internal sealed class MaterialColorInterpolator : ITweenInterpolator
@@ -408,6 +420,8 @@ namespace FlT
         static MaterialColorInterpolator() => InterpolatorPoolStats.Register("MaterialColorInterpolator", () => pool.Count);
         public static MaterialColorInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 
     internal sealed class MaterialVectorInterpolator : ITweenInterpolator
@@ -435,6 +449,8 @@ namespace FlT
         static MaterialVectorInterpolator() => InterpolatorPoolStats.Register("MaterialVectorInterpolator", () => pool.Count);
         public static MaterialVectorInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 
     internal sealed class CameraRectInterpolator : ITweenInterpolator
@@ -460,6 +476,8 @@ namespace FlT
         static CameraRectInterpolator() => InterpolatorPoolStats.Register("CameraRectInterpolator", () => pool.Count);
         public static CameraRectInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 
     internal sealed class MaterialTilingInterpolator : ITweenInterpolator
@@ -487,6 +505,8 @@ namespace FlT
         static MaterialTilingInterpolator() => InterpolatorPoolStats.Register("MaterialTilingInterpolator", () => pool.Count);
         public static MaterialTilingInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 
     internal sealed class MaterialOffsetInterpolator : ITweenInterpolator
@@ -514,6 +534,8 @@ namespace FlT
         static MaterialOffsetInterpolator() => InterpolatorPoolStats.Register("MaterialOffsetInterpolator", () => pool.Count);
         public static MaterialOffsetInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 
     internal sealed class BlendShapeInterpolator : ITweenInterpolator
@@ -541,5 +563,7 @@ namespace FlT
         static BlendShapeInterpolator() => InterpolatorPoolStats.Register("BlendShapeInterpolator", () => pool.Count);
         public static BlendShapeInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
         public void ReturnToPool() { Reset(); pool.Push(this); }
+
+        public void OnComplete() { }
     }
 }

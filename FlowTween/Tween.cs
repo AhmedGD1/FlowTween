@@ -142,6 +142,7 @@ namespace FlT
         public void Complete()
         {
             Elapsed = playbackDirection > 0f ? Duration : 0f;
+            interpolator?.OnComplete();
             onComplete?.Invoke();
             pendingTween?.UnPend();
             completed = true;

@@ -229,6 +229,15 @@ namespace FlT
             }
         }
 
+        #region Delay
+
+        public static void FlowDelay(float delay, Action onComplete)
+        {
+            GetTweenRaw(delay).OnComplete(onComplete).Linear().EaseIn();
+        }
+
+        #endregion
+
         // ═════════════════════════════════════════════════════════════════════
         //  Scene Lifecycle
         // ═════════════════════════════════════════════════════════════════════
@@ -322,6 +331,18 @@ namespace FlT
             else                       { tweenPoolHits++;   tween = tweenPool.Pop(); }
             tween.SetDuration(duration);
             AddActiveTween(tween);
+            return tween;
+        }
+
+        /// <summary>
+        /// Wires a pre-configured effect interpolator to a pooled tween in one call.
+        /// Call the interpolator's <c>Get()</c> and <c>Setup()</c> first, then pass it here.
+        /// </summary>
+        internal static Tween MakeTween(float duration, ITweenInterpolator interp, UnityEngine.Object target)
+        {
+            Tween tween = GetTweenRaw(duration);
+            tween.SetInterpolator(interp);
+            tween.Target = target;
             return tween;
         }
 
