@@ -37,6 +37,9 @@ using FlT;
 // Move a transform to world position (0, 5, 0) over 1 second
 transform.FlowMove(new Vector3(0f, 5f, 0f), 1f);
 
+// Built-in delay tween;
+FlowTween.FlowDelay(delay: 2f, () => print("Hello world"));
+
 // Fade a CanvasGroup out and disable it when done
 canvasGroup.FlowFadeDisable(0.4f);
 
