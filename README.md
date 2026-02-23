@@ -1,33 +1,31 @@
 # FlowTween
 
-A lightweight, pooled, zero-allocation tweening library for Unity. FlowTween provides a fluent API for animating transforms, UI elements, audio, lights, cameras, physics bodies, and arbitrary values — with built-in sequences, easing, groups, and an Editor debugger.
+A lightweight, zero-allocation tweening library for Unity built around object pooling and a fluent chaining API. Covers transform animation, UI, audio, lights, cameras, physics, TextMeshPro, materials, and a suite of procedural effects — all without a single managed allocation per tween after the pool is warm.
 
 ---
 
-## Table of Contents
+## Features
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Extension Methods](#extension-methods)
-- [Virtual Tweens](#virtual-tweens)
-- [Easing](#easing)
-- [Tween Options](#tween-options)
-- [Sequences](#sequences)
-- [Groups](#groups)
-- [Global Controls](#global-controls)
-- [Settings](#settings)
-- [Debug Window](#debug-window)
-- [Settings Window](#settings-window)
-- [Extending with Custom Interpolators](#extending-with-custom-interpolators)
-- [Tips & Recommendations](#tips--recommendations)
+- **Zero-alloc design** — tweens and sequences are pooled and recycled. Effect interpolators (shake, punch, jello, etc.) are pooled too; no lambdas are captured at call sites
+- **Fluent API** — every setter returns `Tween`, so easing, looping, delays, and callbacks chain naturally
+- **Sequences** — compose tweens with `Append`, `Join`, `Insert`, `Prepend`, and timed callbacks
+- **12 easing curves × 4 modes** — Linear, Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce, Spring × In / Out / InOut / OutIn, plus `AnimationCurve` support
+- **Groups** — tag tweens with a string or enum key, then `KillGroup`, `PauseGroup`, `ResumeGroup` in one call
+- **Global & per-tween time scale** — independent of `Time.timeScale`, with optional unscaled time per tween
+- **Speed-based duration** — set units-per-second instead of a fixed duration and let the library derive it from the actual distance
+- **Physics-safe** — Rigidbody and Rigidbody2D tweens automatically run in `FixedUpdate`
+- **Auto kill on scene unload** — destroys tweens whose targets no longer exist
+- **Editor debugger** — a full runtime inspector with virtual scrolling, event log, pool profiler, ease reference curves, and live settings
 
 ---
 
 ## Installation
 
-Copy all `.cs` files from the `FlT` namespace into your Unity project. The manager singleton (`[FlowTween]`) is created automatically before the first scene loads — no manual setup required.
+Drop the `FlT` folder anywhere inside your project's `Assets` directory. No assembly definitions or package manifests are required.
 
-Optionally place a `FlowTweenSettings` asset at `Resources/FlowTweenSettings` to configure defaults (see [Settings](#settings)).
+FlowTween initialises itself before the first scene loads via `[RuntimeInitializeOnLoadMethod]` — you do not need to place a prefab in your scene.
+
+**Optional:** create a `FlowTweenSettings` ScriptableObject at `Resources/FlowTweenSettings` to configure defaults and pool pre-warming. Without it the library runs with sensible fallback values.
 
 ---
 
@@ -36,220 +34,209 @@ Optionally place a `FlowTweenSettings` asset at `Resources/FlowTweenSettings` to
 ```csharp
 using FlT;
 
-// Move a transform to a world position over 1 second
-transform.FlowMove(new Vector3(5f, 0f, 0f), 1f);
+// Move a transform to world position (0, 5, 0) over 1 second
+transform.FlowMove(new Vector3(0f, 5f, 0f), 1f);
 
-// Scale up with a bounce ease, then log when done
-transform.FlowScale(Vector3.one * 2f, 0.5f)
-    .Bounce()
-    .EaseOut()
-    .OnComplete(() => Debug.Log("Done!"));
+// Fade a CanvasGroup out and disable it when done
+canvasGroup.FlowFadeDisable(0.4f);
 
-// Fade out a CanvasGroup
-canvasGroup.FlowFadeOut(0.3f);
-
-// Animate a custom float value
-FlowVirtual.Float(0f, 100f, 1f, value => myText.text = value.ToString("0"))
-    .SetDelay(0.5f)
-    .Play(); // (tweens from extensions are automatically active; FlowVirtual tweens need no .Play() — they start immediately)
-```
-
----
-
-## Extension Methods
-
-All extension methods live on `FlowTweenExtensions` and follow the pattern `target.FlowXxx(to, duration)`. They return a `Tween` you can chain modifiers onto.
-
-### Transform
-
-| Method | Description |
-|---|---|
-| `FlowMove(Vector3, float)` | World position |
-| `FlowMoveX/Y/Z(float, float)` | Single world axis |
-| `FlowMoveLocal(Vector3, float)` | Local position |
-| `FlowScale(Vector3, float)` | Local scale |
-| `FlowScaleUniform(float, float)` | Uniform scale shorthand |
-| `FlowRotate(Quaternion/Vector3, float)` | World rotation |
-| `FlowRotateLocal(Quaternion/Vector3, float)` | Local rotation |
-
-### UI & Canvas
-
-| Method | Target | Description |
-|---|---|---|
-| `FlowFade(float, float)` | `CanvasGroup` | Alpha |
-| `FlowFadeIn/Out(float)` | `CanvasGroup` | Convenience fade to 1/0 |
-| `FlowAnchorMove(Vector2, float)` | `RectTransform` | Anchored position |
-| `FlowAnchorMin/Max(Vector2, float)` | `RectTransform` | Anchor corners |
-| `FlowSizeDelta(Vector2, float)` | `RectTransform` | Size delta |
-| `FlowFade/FadeIn/FadeOut` | `Graphic` | Graphic alpha |
-| `FlowColor(Color, float)` | `Graphic` | Graphic color |
-| `FlowFillAmount(float, float)` | `Image` | Fill amount |
-| `FlowReveal(float)` | `TMP_Text` | Character-by-character reveal |
-
-### Rendering
-
-| Method | Target | Description |
-|---|---|---|
-| `FlowFade/FadeIn/FadeOut` | `SpriteRenderer` | Sprite alpha |
-| `FlowColor(Color, float)` | `SpriteRenderer` | Sprite color |
-| `FlowColor(Color, float)` | `Renderer` | Material color |
-
-### Audio
-
-| Method | Description |
-|---|---|
-| `FlowVolume(float, float)` | AudioSource volume |
-| `FlowPitch(float, float)` | AudioSource pitch |
-
-### Lights & Camera
-
-| Method | Target | Description |
-|---|---|---|
-| `FlowIntensity(float, float)` | `Light` | Light intensity |
-| `FlowColor(Color, float)` | `Light` | Light color |
-| `FlowRange(float, float)` | `Light` | Light range |
-| `FlowFov(float, float)` | `Camera` | Field of view |
-| `FlowOrthoSize(float, float)` | `Camera` | Orthographic size |
-
-### Juice / Procedural Effects
-
-| Method | Description |
-|---|---|
-| `FlowSquish(float, float, SquishDirection)` | Classic squash-and-stretch sequence |
-| `FlowShake2D/3D(float, float, float)` | Perlin noise position shake |
-| `FlowShakeLocal2D/3D(...)` | Same in local space |
-| `FlowShakeRotation2D/3D(...)` | Perlin noise rotation shake |
-| `FlowShakeRotationAxis(Vector3, ...)` | Shake around an arbitrary axis |
-| `FlowPunchPosition2D/3D(...)` | Sinusoidal punch effect |
-| `FlowPunchScale2D/3D(...)` | Sinusoidal scale punch |
-
----
-
-## Virtual Tweens
-
-Use `FlowVirtual` when you want to drive a value that doesn't map to a built-in property:
-
-```csharp
-// Float
-FlowVirtual.Float(0f, 1f, 0.5f, t => myMaterial.SetFloat("_Blend", t));
-
-// Int  
-FlowVirtual.Int(0, 100, 2f, i => scoreText.text = i.ToString());
-
-// Vector2 / Vector3 / Color
-FlowVirtual.Color(Color.red, Color.blue, 1f, c => myRenderer.material.color = c);
+// Scale up with a bounce, loop twice, then call a method
+transform.FlowScale(Vector3.one * 1.5f, 0.6f)
+         .Bounce().EaseOut()
+         .SetLoops(2, Tween.LoopType.Yoyo)
+         .OnComplete(OnAnimationDone);
 ```
 
 ---
 
 ## Easing
 
-Every `Tween` has a **TransitionType** and an **EaseType**.
-
-### Transition shortcuts (fluent)
+Append a transition method, then optionally an ease direction:
 
 ```csharp
-tween.Linear().Sine().Quad().Cubic().Quart().Quint()
-     .Expo().Circ().Back().Elastic().Bounce().Spring()
+tween.Sine().EaseInOut()
+tween.Elastic().EaseOut()
+tween.Back().EaseIn()
+tween.SetCurve(myAnimationCurve)   // custom AnimationCurve
 ```
 
-### Ease shortcuts (fluent)
-
-```csharp
-tween.EaseIn().EaseOut().EaseInOut().EaseOutIn()
-```
-
-### Custom AnimationCurve
-
-```csharp
-tween.SetCurve(myAnimationCurve);
-```
-
-When a custom curve is set it overrides TransitionType/EaseType.
+**Transitions:** `Linear` `Sine` `Quad` `Cubic` `Quart` `Quint` `Expo` `Circ` `Back` `Elastic` `Bounce` `Spring`  
+**Ease modes:** `EaseIn` `EaseOut` `EaseInOut` `EaseOutIn`
 
 ---
 
-## Tween Options
+## Extension Methods by Category
 
-All set methods return `this` for chaining.
+### Transform
 
-```csharp
-transform.FlowMove(target, 1f)
-    .SetDelay(0.5f)               // wait before starting
-    .SetLoops(3, LoopType.Yoyo)   // repeat 3 times, ping-pong
-    .SetRelative()                // treat 'to' as an offset from current value
-    .SetFrom(Vector3.zero)        // override the starting value
-    .SetTimeScale(0.5f)           // individual speed multiplier
-    .SetUnscaledTime()            // ignore Time.timeScale
-    .SetSpeedBase(5f)             // duration derived from distance / speed
-    .SetId("myTween")             // used for KillById
-    .SetGroup("UI")               // group for batch kill/pause/resume
-    .SetUpdateMode(TweenUpdateMode.Fixed) // use FixedUpdate instead of Update
-    .OnStart(() => { })
-    .OnUpdate(t => { })           // receives eased 0→1 progress
-    .OnLoop(loop => { })
-    .OnComplete(() => { })
-    .OnKill(() => { });
-```
+| Method | Description |
+|---|---|
+| `FlowMove(to, duration)` | World position |
+| `FlowMoveX/Y/Z(to, duration)` | Single world axis |
+| `FlowMoveLocal(to, duration)` | Local position |
+| `FlowMoveLocalX/Y/Z(to, duration)` | Single local axis |
+| `FlowScale(to, duration)` | Local scale |
+| `FlowScaleUniform(scale, duration)` | Uniform scale on all axes |
+| `FlowRotate(to, duration)` | World rotation (Quaternion or euler) |
+| `FlowRotateLocal(to, duration)` | Local rotation (Quaternion or euler) |
+| `FlowSpin(duration)` | Continuous 360° spin on Z |
+| `FlowSpin(axis, duration)` | Continuous 360° spin on any axis |
 
-### Chaining with `.Then()`
+### UI
 
-```csharp
-transform.FlowMove(posA, 0.5f)
-    .Then(transform.FlowMove(posB, 0.5f)
-        .Then(transform.FlowMove(posC, 0.5f)));
-```
+| Method | Description |
+|---|---|
+| `FlowFade(to, duration)` | CanvasGroup alpha |
+| `FlowFadeIn/Out(duration)` | Convenience wrappers to 1 / 0 |
+| `FlowFadeEnable/Disable(duration)` | Fades and toggles `interactable` + `blocksRaycasts` |
+| `FlowFade(to, duration)` | Graphic alpha (Image, Text, …) |
+| `FlowColor(to, duration)` | Graphic color |
+| `FlowGradient(gradient, duration)` | Graphic or SpriteRenderer sampled across a Gradient |
+| `FlowAnchorMove(to, duration)` | RectTransform anchored position |
+| `FlowAnchorMin/Max(to, duration)` | Anchor bounds |
+| `FlowSizeDelta(to, duration)` | RectTransform size |
+| `FlowPivot(to, duration)` | Pivot |
+| `FlowOffsetMin/Max(to, duration)` | Layout offsets |
+| `FlowFillAmount(to, duration)` | Image fill |
+| `FlowPosition(to, duration)` | ScrollRect normalised position |
+| `FlowValue(to, duration)` | Slider value |
+| `FlowSlideIn/Out(direction, offset, duration)` | Edge-based slide transitions |
 
-### Controlling a tween
+### Renderer & Material
 
-```csharp
-Tween t = transform.FlowMove(target, 1f);
-t.Pause();
-t.Resume();
-t.Kill();
-t.Complete();   // jump to end, fire OnComplete
-t.Restart();
-```
+| Method | Description |
+|---|---|
+| `FlowFade(to, duration)` | SpriteRenderer alpha |
+| `FlowColor(to, duration)` | SpriteRenderer / Renderer color |
+| `FlowMaterialFloat(property, to, duration)` | Named shader float |
+| `FlowMaterialColor(property, to, duration)` | Named shader color |
+| `FlowMaterialVector(property, to, duration)` | Named shader vector |
+| `FlowMaterialTiling(property, to, duration)` | Texture tiling |
+| `FlowMaterialOffset(property, to, duration)` | Texture offset |
+| `FlowBlendShape(index, to, duration)` | SkinnedMeshRenderer blend shape weight |
+
+### Audio
+
+| Method | Description |
+|---|---|
+| `FlowVolume(to, duration)` | AudioSource volume |
+| `FlowPitch(to, duration)` | AudioSource pitch |
+| `FlowPanStereo(to, duration)` | Stereo pan (−1 … 1) |
+| `FlowFadeOutAndStop(duration)` | Fades to zero then calls `Stop()` |
+
+### Camera & Light
+
+| Method | Description |
+|---|---|
+| `FlowFov(to, duration)` | Perspective field of view |
+| `FlowOrthoSize(to, duration)` | Orthographic size |
+| `FlowBackgroundColor(to, duration)` | Camera background color |
+| `FlowRect(to, duration)` | Camera viewport Rect |
+| `FlowIntensity(to, duration)` | Light intensity |
+| `FlowColor(to, duration)` | Light color |
+| `FlowRange(to, duration)` | Light range |
+
+### TextMeshPro
+
+| Method | Description |
+|---|---|
+| `FlowReveal(duration)` | Fade-reveal characters via vertex alpha |
+| `FlowTypewriter(duration)` | Crisp character-by-character reveal via `maxVisibleCharacters` |
+| `FlowCounter(from, to, duration, format)` | Animate a float counter with a format string |
+| `FlowCounter(from, to, duration)` | Animate an integer counter |
+| `FlowCounter(from, to, duration, formatter)` | Custom `Func<float, string>` formatter |
+| `FlowCharacterColor(to, duration)` | Animate vertex color across all characters |
+
+### Physics (FixedUpdate)
+
+| Method | Description |
+|---|---|
+| `FlowPosition(to, duration)` | Rigidbody / Rigidbody2D via `MovePosition` |
+| `FlowRotation(to, duration)` | Rigidbody / Rigidbody2D via `MoveRotation` |
+
+---
+
+## Procedural Effects
+
+All effects are allocation-free. Each has an internal pooled interpolator that captures its state as fields.
+
+| Method | Description |
+|---|---|
+| `FlowShake2D(duration, strength, frequency)` | Perlin-noise world-space XY shake |
+| `FlowShakeLocal2D(...)` | Local-space XY variant |
+| `FlowShake3D(duration, strength, frequency)` | Perlin-noise XYZ shake |
+| `FlowShakeLocal3D(...)` | Local-space XYZ variant |
+| `FlowShakeRotation3D(duration, strength, frequency)` | All-axis rotation shake |
+| `FlowShakeRotation2D(duration, strength, frequency)` | Z-axis rotation shake |
+| `FlowShakeRotationAxis(axis, duration, strength, frequency)` | Arbitrary-axis rotation shake |
+| `FlowPunchPosition2D(punch, duration, vibrato, elasticity)` | Oscillating 2D position punch |
+| `FlowPunchPosition3D(punch, duration, vibrato, elasticity)` | Oscillating 3D position punch |
+| `FlowPunchScale2D(punch, duration, vibrato, elasticity)` | Oscillating uniform scale punch |
+| `FlowPunchScale3D(punch, duration, vibrato, elasticity)` | Oscillating per-axis scale punch |
+| `FlowJello(duration, intensity, frequency)` | Decaying squash-and-stretch oscillation |
+| `FlowWobbleRotate(duration, strength, frequency)` | Decaying rotational wobble |
+| `FlowSquish(duration, ratio, direction)` | Three-step squash-and-stretch sequence |
+| `FlowHeartbeat(duration, intensity, beats)` | Lub-dub double-pulse scale effect |
+| `FlowBlink(blinks, blinkDuration, endVisible)` | Rapid enable/disable blink |
+| `FlowFloat(amplitude, frequency)` | Continuous sine-wave bobbing (infinite loop) |
+| `FlowPulse(scaleMagnitude, frequency)` | Looping scale throb |
+| `FlowPulse(canvasGroup, scaleMagnitude, alphaMin, frequency)` | Scale + alpha throb |
+| `FlowFlipX/Y(duration, full)` | Card-flip illusion via scale-through-zero |
+| `FlowLookAt(targetProvider, duration, upAxis)` | Continuously rotate to face a world position |
+| `FlowLookAt2D(targetProvider, duration)` | 2D Z-axis tracking |
+| `FlowPath(waypoints, duration, closedLoop, orientToPath)` | Catmull-Rom spline (world space) |
+| `FlowPathLocal(waypoints, duration, closedLoop, orientToPath)` | Catmull-Rom spline (local space) |
 
 ---
 
 ## Sequences
 
-Sequences are pooled, sorted containers for multiple tweens.
-
 ```csharp
 FlowTween.Sequence()
-    .Append(transform.FlowMove(posA, 0.5f))          // runs after the previous step
-    .Join(transform.FlowScale(Vector3.one * 2f, 0.3f)) // runs in parallel with the last Append
-    .AppendInterval(0.2f)                             // blank gap
-    .Append(canvasGroup.FlowFadeOut(0.4f))
-    .AppendCallback(() => Debug.Log("Faded out"))
-    .InsertCallback(0.1f, () => Debug.Log("At 100ms"))
-    .Insert(0f, transform.FlowRotate(Vector3.up * 90f, 1f)) // explicit time
-    .Prepend(someOtherTween)                          // shifts everything forward
-    .SetLoops(2)
-    .OnLoop(i => Debug.Log($"Loop {i}"))
-    .OnComplete(() => Debug.Log("Sequence done"))
+    .Append(transform.FlowMove(targetA, 0.5f).Sine().EaseOut())
+    .AppendInterval(0.2f)
+    .Join(canvasGroup.FlowFade(0f, 0.3f))
+    .Append(transform.FlowScale(Vector3.one * 1.2f, 0.3f).Back().EaseOut())
+    .AppendCallback(() => Debug.Log("done"))
+    .SetLoops(3)
+    .OnComplete(OnSequenceFinished)
     .Play();
 ```
 
+| Method | Description |
+|---|---|
+| `Append(tween)` | Add after the current write-head |
+| `Join(tween)` | Run in parallel with the previous step |
+| `Insert(time, tween)` | Place at an explicit timestamp |
+| `Prepend(tween)` | Insert at the front, shifting everything forward |
+| `AppendInterval(duration)` | Insert a blank gap |
+| `AppendCallback(action)` | Fire a callback at the current write-head |
+| `InsertCallback(time, action)` | Fire a callback at an explicit time |
+| `SetLoops(count)` | Loop the whole sequence |
+| `OnComplete(action)` | Callback when the sequence finishes |
+| `OnLoop(action)` | Callback on each loop iteration |
+| `Pause()` / `Resume()` / `Kill()` | Playback control |
+
 ---
 
-## Groups
-
-Assign tweens to named groups (string or any `Enum`) for batch control:
+## Tween Configuration
 
 ```csharp
-transform.FlowMove(target, 1f).SetGroup("UI");
-transform.FlowScale(Vector3.one, 1f).SetGroup("UI");
-
-FlowTween.PauseGroup("UI");
-FlowTween.ResumeGroup("UI");
-FlowTween.KillGroup("UI");
-
-// Enum overloads
-enum TweenGroup { UI, Gameplay, Audio }
-FlowTween.PauseGroup(TweenGroup.UI);
+transform.FlowMove(Vector3.up * 3f, 2f)
+    .SetDelay(0.5f)
+    .SetLoops(-1, Tween.LoopType.Yoyo)   // -1 = infinite
+    .SetFrom(Vector3.down)
+    .SetRelative()                         // treat 'to' as an offset from start
+    .SetSpeedBase(5f)                      // 5 units/sec, duration derived from distance
+    .SetUnscaledTime()                     // ignores Time.timeScale
+    .SetTimeScale(2f)                      // per-tween time multiplier
+    .SetGroup("UI")                        // tag for group operations
+    .SetId(myId)                           // tag for KillById
+    .OnStart(() => { })
+    .OnUpdate(t => { })                    // receives the eased progress value
+    .OnLoop(i => { })
+    .OnComplete(() => { })
+    .OnKill(() => { });
 ```
 
 ---
@@ -262,122 +249,130 @@ FlowTween.PauseAll();
 FlowTween.ResumeAll();
 FlowTween.CompleteAll();
 
-FlowTween.KillTarget(gameObject);     // kill all tweens targeting an object
-FlowTween.CompleteTarget(gameObject);
-FlowTween.KillById("myTween");
+FlowTween.KillGroup("UI");          // string key
+FlowTween.PauseGroup(MyEnum.Combat);// enum key
 
-FlowTween.KillSequences();
-FlowTween.PauseSequences();
-FlowTween.ResumeSequences();
-```
+FlowTween.KillById(someId);
 
-Extension shortcuts on any `UnityEngine.Object`:
+FlowTween.SetGlobalTimeScale(0.5f); // slow-motion, does not affect unscaled tweens
 
-```csharp
-gameObject.FlowKill();
-gameObject.FlowComplete();
+// Per-object convenience (extension on UnityEngine.Object)
+myRenderer.FlowKill();
+myRenderer.FlowComplete();
 ```
 
 ---
 
-## Settings
+## Virtual Tweens
 
-Create a `FlowTweenSettings` asset at `Resources/FlowTweenSettings` (right-click → Create → FlowTween → Settings) to configure project-wide defaults.
-
-| Property | Description | Default |
-|---|---|---|
-| `defaultTransition` | Transition curve used when none is set | `Linear` |
-| `defaultEase` | Ease direction used when none is set | `In` |
-| `globalTimeScale` | Multiplier applied to all `Update` tweens | `1.0` |
-| `killOnSceneUnload` | Kill tweens that target objects in unloaded scenes | `true` |
-| `autoKillOrphans` | Kill tweens whose target `UnityEngine.Object` is destroyed | `true` |
-| `minPoolSize` | Pools won't shrink below this count | `10` |
-| `shrinkInterval` | Seconds between pool shrink passes | `10` |
-| `shrinkPercent` | Fraction of excess pool entries removed per shrink | `0.25` |
-| `prewarmTweens` | Tween pool pre-allocated at startup | `0` |
-| `prewarmSequences` | Sequence pool pre-allocated at startup | `0` |
-
-You can also apply settings at runtime:
+`FlowVirtual` lets you drive any arbitrary value with a pooled tween and an explicit callback, for cases where no built-in interpolator exists:
 
 ```csharp
-FlowTween.ApplySettings(mySettingsAsset);
-FlowTween.LoadSettings(); // re-read from Resources
+FlowVirtual.Float(0f, 100f, 1.5f, value =>
+{
+    scoreText.text = value.ToString("0");
+});
+
+FlowVirtual.Vector3(startPos, endPos, 1f, pos =>
+{
+    lineRenderer.SetPosition(0, pos);
+});
+```
+
+Available types: `Float`, `Int`, `Vector2`, `Vector3`, `Color`.
+
+> **Note:** for built-in effects and components, prefer the dedicated extension methods over `FlowVirtual` — they use pooled interpolators and produce no managed allocations.
+
+---
+
+## `.Then()` Chaining
+
+Play a second tween immediately after the first completes:
+
+```csharp
+transform.FlowMove(pointA, 1f)
+    .Then(transform.FlowMove(pointB, 1f));
 ```
 
 ---
 
-## Debug Window
+## Pool Management
+
+FlowTween uses separate pools for tweens and sequences. Both grow on demand and shrink gradually during idle periods to avoid holding memory indefinitely.
+
+Pool sizing, shrink interval, and shrink percentage are configurable via `FlowTweenSettings`. The debugger's **Profiler** tab shows live pool hit rate, total returns, and per-type interpolator counts.
+
+---
+
+## Editor Debugger
 
 <img width="896" height="547" alt="d4" src="https://github.com/user-attachments/assets/a3bd5d3f-8492-4bdf-8081-df0bb7eeb24c" />
 <img width="903" height="550" alt="d3" src="https://github.com/user-attachments/assets/a91249bf-1a41-4482-b1d1-43df34123ddd" />
 <img width="859" height="281" alt="d2" src="https://github.com/user-attachments/assets/a9700b01-bc01-45ee-9696-257a2bc2dc8e" />
 <img width="896" height="548" alt="d1" src="https://github.com/user-attachments/assets/96467d13-4ff7-422c-8197-a8b5f6c6f32b" />
 
-Open via **Window → FlowTween → Debug**.
+Open with **Window › Analysis › FlowTween Debugger** or `Alt+Shift+T`.
 
-The debug window gives you a live view of the runtime state:
+| Tab | Contents |
+|---|---|
+| **Update** | All active idle tweens with progress bars, interpolator type, group, and per-tween controls |
+| **Fixed** | All active fixed-update tweens |
+| **Sequences** | Active sequences with per-step timeline |
+| **Groups** | Tweens indexed by group name |
+| **Pool** | Pool sizes, hit rates, and per-interpolator-type counts |
+| **Event Log** | Start / Complete / Kill / Loop / Pause / Resume events with timestamps |
+| **Ease Ref** | Interactive curve previewer for all 48 easing combinations |
+| **Profiler** | Active count history sparkline and per-frame stats |
+| **Settings** | Live editing of all `FlowTweenSettings` fields |
 
-- **Active tweens** — idle and fixed lists, with each tween's target, interpolator type, from/to values, progress bar, loop count, and whether it's playing/paused/pending
-- **Active sequences** — step timeline, elapsed progress, loop state, and per-step tween breakdown
-- **Pool stats** — tween and sequence pool sizes, hit/miss counts, and hit rate percentage
-- **Interpolator pool stats** — per-type pool sizes for all registered interpolators
-- **Global controls** — Kill All / Pause All / Resume All / Complete All buttons directly in the window
-- **Settings snapshot** — current global time scale, default transition/ease, and behaviour flags
-
-The window auto-refreshes every editor frame during Play Mode.
+The debugger uses virtual scrolling — only visible cards are rendered regardless of how many tweens are active.
 
 ---
 
-## Settings Window
+## Custom Interpolators
+
+To animate a property that has no built-in extension method, implement `IPropertyInterpolator<TTarget, TValue>` as a `readonly struct`:
+
+```csharp
+internal readonly struct MyCustomInterpolator : IPropertyInterpolator<MyComponent, float>
+{
+    public float GetValue(MyComponent target) => target.myProperty;
+
+    public void SetValue(MyComponent target, float from, float to, float t)
+        => target.myProperty = Mathf.LerpUnclamped(from, to, t);
+}
+
+// Use it
+FlowTween.GetTween<MyComponent, float, MyCustomInterpolator>(component, duration, targetValue);
+```
+
+The `StructTweenInterpolator<TTarget, TValue, TInterp>` wrapper handles pooling, `SetRelative`, `SetFrom`, and `SetSpeedBase` automatically.
+
+---
+
+## Settings
+
+Open with **Window › FlowTween › Settings** or `Ctrl+Shift+Alt+S`.
 
 <img width="715" height="649" alt="settings3" src="https://github.com/user-attachments/assets/32237037-f5d0-440f-9d7c-4c054bb43560" />
 <img width="713" height="645" alt="settings2" src="https://github.com/user-attachments/assets/68f622a9-bc73-42ad-8ab1-5af5d735ce0d" />
-<img width="713" height="645" alt="settings1" src="https://github.com/user-attachments/assets/3c879a3c-edef-4ded-a686-c1dc6736ded0" />
 
-Open via **Window → FlowTween → Settings** (or by clicking *Edit Settings* from the debug window).
-
-Provides a GUI for creating and editing the `FlowTweenSettings` asset without hunting through the Project panel. Changes made here write to the asset immediately and are applied to the running game on the next call to `ApplySettings`.
-
----
-
-## Extending with Custom Interpolators
-
-Implement `IPropertyInterpolator<TTarget, TValue>` as a `struct` to teach FlowTween how to read and write any property:
-
-```csharp
-public struct MyCustomInterpolator : IPropertyInterpolator<MyComponent, float>
-{
-    public float GetValue(MyComponent target) => target.myFloat;
-    public void  SetValue(MyComponent target, float from, float to, float t)
-        => target.myFloat = Mathf.LerpUnclamped(from, to, t);
-}
-
-// Use it:
-FlowTween.GetTween<MyComponent, float, MyCustomInterpolator>(component, 1f, targetValue);
-```
-
-Because interpolators are `struct`s, they allocate nothing at call time. Completed interpolators are pooled automatically.
+| Field | Description |
+|---|---|
+| `defaultTransition` | Transition curve applied to all new tweens |
+| `defaultEase` | Ease mode applied to all new tweens |
+| `globalTimeScale` | Master time multiplier (does not affect unscaled tweens) |
+| `killOnSceneUnload` | Automatically kill tweens when a scene is unloaded |
+| `autoKillOrphans` | Kill tweens whose `Target` component has been destroyed |
+| `minPoolSize` | Minimum tween/sequence count kept in the pool after shrinking |
+| `shrinkInterval` | Seconds between pool shrink passes |
+| `shrinkPercent` | Fraction of excess pool items removed per shrink pass |
+| `prewarmTweens` | Tweens to allocate at startup |
+| `prewarmSequences` | Sequences to allocate at startup |
 
 ---
 
-## Tips & Recommendations
+## Requirements
 
-**Pool pre-warming** — for scenes with many simultaneous tweens, set `prewarmTweens` in your settings asset to avoid the GC cost of the first allocations.
-
-**Speed-based duration** — `SetSpeedBase(unitsPerSecond)` computes the duration from the actual `from → to` distance. Handy for movement where you want consistent perceived speed regardless of distance.
-
-**`SetRelative()`** — the `to` value becomes an offset added to wherever the target is when the tween starts, not when it was created. Safe to use with `.Then()` chains.
-
-**`autoKillOrphans`** — leave this enabled (the default). It silently removes tweens whose target object has been destroyed, preventing null-reference errors without requiring manual cleanup.
-
-**Sequence vs `.Then()`** — use `Sequence` when you need parallel tracks, callbacks at specific times, or looping groups of tweens. Use `.Then()` for simple linear chains of two or three tweens.
-
-**`SetUnscaledTime()`** — bypasses both `Time.timeScale` and `FlowTween.GlobalTimeScale`. Essential for UI tweens that should remain responsive when the game is paused.
-
-**Groups with enums** — prefer typed enums over raw strings to avoid typos and enable IDE autocomplete.
-
-```csharp
-enum Layer { UI, FX, World }
-tween.SetGroup(Layer.UI);
-FlowTween.KillGroup(Layer.UI);
-```
+- Unity 2021.3 or later
+- TextMeshPro for the TMP extension methods (optional; the rest of the library has no TMP dependency)
