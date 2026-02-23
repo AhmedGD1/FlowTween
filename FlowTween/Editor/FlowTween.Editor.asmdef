@@ -1,0 +1,12 @@
+{
+    "name": "FlowTween.Editor",
+    "rootNamespace": "FlT.Editor",
+    "references": [
+        "FlowTween.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "allowUnsafeCode": false,
+    "autoReferenced": false
+}

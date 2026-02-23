@@ -1,0 +1,16 @@
+{
+    "name": "FlowTween.Runtime",
+    "rootNamespace": "FlT",
+    "references": [
+        "Unity.TextMeshPro"
+    ],
+    "allowUnsafeCode": false,
+    "autoReferenced": true,
+    "versionDefines": [
+        {
+            "name": "com.unity.textmeshpro",
+            "expression": "",
+            "define": "FLOWTWEEN_TMP_SUPPORT"
+        }
+    ]
+}
