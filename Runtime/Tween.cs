@@ -119,11 +119,16 @@ namespace FlT
             onKill?.Invoke();
         }
 
+        /// <summary>
+        /// Note: Make sure to call it at the end since it returns the next tween not the current tween
+        /// </summary>
+        /// <param name="tween"></param>
+        /// <returns></returns>
         public Tween Then(Tween tween)
         {
             tween.Pend();
             pendingTween = tween;
-            return this;
+            return tween;
         }
 
         public Tween Restart()
