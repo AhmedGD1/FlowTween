@@ -51,6 +51,7 @@ namespace FlT
         private int loops;
         private int currentLoop;
 
+        private Action onKill;
         private Action onComplete;
         private Action<int> onLoop;
 
@@ -132,6 +133,7 @@ namespace FlT
 
         public void Kill()
         {
+            onKill?.Invoke();
             completed = true;
         }
 
@@ -249,6 +251,12 @@ namespace FlT
             return this;
         }
 
+        public Sequence OnKill(Action callback)
+        {
+            onKill = callback;
+            return this;
+        }
+
         internal void ResetData()
         {
             for (int i = 0; i < steps.Count; i++)
@@ -261,6 +269,7 @@ namespace FlT
             paused          = false;
             onComplete      = null;
             onLoop          = null;
+            onKill          = null;
             totalDuration   = 0f;
             currentTime     = 0f;
             elapsed         = 0f;
