@@ -2,7 +2,7 @@
   "name": "com.flowtween.tween",
   "version": "1.0.2",
   "displayName": "FlowTween",
-  "description": "Zero-allocation tween library for Unity with real-time debugger. 50,000 tweens at 90fps.",
+  "description": "Zero-allocation tween library for Unity with real-time debugger.",
   "unity": "2021.3",
   "unityRelease": "0f1",
   "documentationUrl": "https://github.com/AhmedGD1/FlowTween#readme",
@@ -28,6 +28,7 @@
     }
   ]
 }
+
 
 
 
