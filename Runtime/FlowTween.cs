@@ -229,15 +229,6 @@ namespace FlT
             }
         }
 
-        #region Delay
-
-        public static void FlowDelay(float delay, Action onComplete)
-        {
-            GetTweenRaw(delay).OnComplete(onComplete).Linear().EaseIn();
-        }
-
-        #endregion
-
         // ═════════════════════════════════════════════════════════════════════
         //  Scene Lifecycle
         // ═════════════════════════════════════════════════════════════════════
@@ -454,6 +445,12 @@ namespace FlT
                 activeTweens[i].Kill();
         }
 
+        public static void FreeAll()
+        {
+            for (int i = activeTweens.Count - 1; i >= 0; i--)
+                activeTweens[i].Free();
+        }
+
         public static void PauseAll()
         {
             for (int i = activeTweens.Count - 1; i >= 0; i--)
@@ -476,6 +473,12 @@ namespace FlT
         {
             for (int i = 0; i < activeTweens.Count;      i++) if (activeTweens[i].Target      == target) activeTweens[i].Kill();
             for (int i = 0; i < activeFixedTweens.Count; i++) if (activeFixedTweens[i].Target == target) activeFixedTweens[i].Kill();
+        }
+
+        public static void FreeTarget(UnityEngine.Object target)
+        {
+            for (int i = 0; i < activeTweens.Count;      i++) if (activeTweens[i].Target      == target) activeTweens[i].Free();
+            for (int i = 0; i < activeFixedTweens.Count; i++) if (activeFixedTweens[i].Target == target) activeFixedTweens[i].Free();
         }
 
         public static void CompleteTarget(UnityEngine.Object target)

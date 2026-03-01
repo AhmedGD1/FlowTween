@@ -602,6 +602,51 @@ namespace FlT
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    //  Shake Scale
+    // ─────────────────────────────────────────────────────────────────────────
+
+    internal sealed class ShakeScaleInterpolator : EffectInterpolatorBase
+    {
+        private Transform transform;
+        private Vector3   startScale;
+        private float     strength;
+        private float     frequency;
+        private float     seedX;
+        private float     seedY;
+        private float     seedZ;
+
+        public void Setup(Transform transform, Vector3 startScale, float strength, float frequency,
+                        float seedX, float seedY, float seedZ)
+        {
+            this.transform  = transform;
+            this.startScale = startScale;
+            this.strength   = strength;
+            this.frequency  = frequency;
+            this.seedX      = seedX;
+            this.seedY      = seedY;
+            this.seedZ      = seedZ;
+        }
+
+        public override void OnTick(float t)
+        {
+            float damper    = Mathf.Lerp(strength, 0f, t);
+            float noiseTime = t * frequency;
+            float x = (Mathf.PerlinNoise(noiseTime, seedX) * 2f - 1f) * damper;
+            float y = (Mathf.PerlinNoise(noiseTime, seedY) * 2f - 1f) * damper;
+            float z = (Mathf.PerlinNoise(noiseTime, seedZ) * 2f - 1f) * damper;
+            transform.localScale = startScale + new Vector3(x, y, z);
+        }
+
+        public override void OnComplete()    => transform.localScale = startScale;
+        public override void Reset()         { transform = null; startScale = default; strength = frequency = seedX = seedY = seedZ = 0f; }
+
+        private static readonly Stack<ShakeScaleInterpolator> pool = new();
+        static ShakeScaleInterpolator() => InterpolatorPoolStats.Register(nameof(ShakeScaleInterpolator), () => pool.Count);
+        public static ShakeScaleInterpolator Get() => pool.Count > 0 ? pool.Pop() : new();
+        public override void ReturnToPool() { Reset(); pool.Push(this); }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     //  Punch Position 2D
     // ─────────────────────────────────────────────────────────────────────────
 

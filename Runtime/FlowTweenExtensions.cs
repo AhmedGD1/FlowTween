@@ -1,25 +1,13 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace FlT
 {
     /// <summary>Direction used by <see cref="FlowTweenExtensions.FlowSquish"/>.</summary>
     public enum SquishDirection { Up, Down }
-
-    internal struct ShakePoint
-    {
-        public Vector3 offset;
-
-        public ShakePoint(float strength)
-        {
-            offset = new Vector3(
-                UnityEngine.Random.Range(-strength, strength),
-                UnityEngine.Random.Range(-strength, strength),
-                UnityEngine.Random.Range(-strength, strength)
-            );
-        }
-    }
+    public enum SpinDirection { Forward, Backward }
 
     /// <summary>
     /// Extension methods for animating Unity components with FlowTween.
@@ -28,6 +16,10 @@ namespace FlT
     public static class FlowTweenExtensions
     {
         #region Main Methods
+
+        /// <summary> Deletes all active tweens immediately & returns them to pool (no callback, no anything just return to pool) </summary>
+        /// <param name="target"></param>
+        public static void FlowFree(this UnityEngine.Object target) => FlowTween.FreeTarget(target);
 
         /// <summary>Kills all active tweens targeting this object.</summary>
         /// <param name="target">The Unity object whose tweens should be killed.</param>
@@ -118,24 +110,33 @@ namespace FlT
         /// <summary>
         /// Plays a three-step squash-and-stretch animation.
         /// The transform squishes, overshoots, then returns to <c>Vector3.one</c>.
+        /// Note: returned tween is a delay tween not the tween updated since it's not one but 3 tweens for squish
         /// </summary>
         /// <param name="transform">Target transform.</param>
         /// <param name="duration">Total duration of the squish effect in seconds.</param>
         /// <param name="ratio">Squish intensity (0–1). Default is 0.2.</param>
         /// <param name="direction">Whether to squish upward or downward first.</param>
-        public static Sequence FlowSquish(this Transform transform, float duration, float ratio = 0.2f, SquishDirection direction = SquishDirection.Up)
+        public static Tween FlowSquish(this Transform transform, float duration, float ratio = 0.2f, SquishDirection direction = SquishDirection.Up)
         {
-            Vector3 val1 = direction == SquishDirection.Up ? new Vector3(1f - ratio, 1f + ratio, 1f) : new Vector3(1f + ratio, 1f - ratio, 1f);
-            Vector3 val2 = direction == SquishDirection.Up ? new Vector3(1f + ratio, 1f - ratio, 1f) : new Vector3(1f - ratio, 1f + ratio, 1f);
+            Vector3 original = transform.localScale;
+
+            float minX = original.x - ratio;
+            float maxX = original.x + ratio;
+            
+            float minY = original.x - ratio;
+            float maxY = original.x + ratio;
+
+            Vector3 val1 = direction == SquishDirection.Up ? new Vector3(minX, maxY, 1f) : new Vector3(maxX, minY, 1f);
+            Vector3 val2 = direction == SquishDirection.Up ? new Vector3(maxX, minY, 1f) : new Vector3(minX, maxY, 1f);
             Vector3 val3 = Vector3.one;
 
             float stepDuration = duration / 3f;
 
-            return FlowTween.Sequence()
-                .Append(transform.FlowScale(val1, stepDuration).Sine())
-                .Append(transform.FlowScale(val2, stepDuration).Sine())
-                .Append(transform.FlowScale(val3, stepDuration).Sine())
-                .Play();
+            transform.FlowScale(val1, stepDuration).Sine()
+                .Then(transform.FlowScale(val2, stepDuration).Sine())
+                .Then(transform.FlowScale(val3, stepDuration).Sine());
+
+            return FlowVirtual.DelayedCall(duration);
         }
 
         #endregion
@@ -395,6 +396,13 @@ namespace FlT
             return FlowTween.MakeTween(duration, interp, renderer);
         }
 
+        /// <summary>Animates the alpha of a <see cref="Renderer"/> material.</summary>
+        /// <param name="renderer">Target Renderer.</param>
+        /// <param name="to">Target alpha (0–1).</param>
+        /// <param name="duration">Duration in seconds.</param>
+        public static Tween FlowAlpha(this Renderer renderer, float to, float duration) =>
+            FlowTween.GetTween<Renderer, float, RendererAlphaInterpolator>(renderer, duration, to);
+
         #endregion
 
         #region Audio Methods
@@ -560,26 +568,27 @@ namespace FlT
         #endregion
 
         #region TMP Pro
-        #if FLOWTWEEN_TMP_SUPPORT
-
         /// <summary>
         /// Reveals TMP text characters using vertex alpha, animating from 0 to the full character count.
         /// For a per-character typewriter effect see <see cref="FlowTypewriter"/>.
         /// </summary>
         /// <param name="text">Target TMP_Text.</param>
         /// <param name="duration">Duration in seconds.</param>
-        public static Tween FlowReveal(this TMPro.TMP_Text text, float duration) =>
-            FlowTween.GetTween<TMPro.TMP_Text, int, TMPProRevealInterpolator>(text, duration, text.textInfo.characterCount);
+        public static Tween FlowReveal(this TMP_Text text, float duration)
+        {
+            text.ForceMeshUpdate();
+            return FlowTween.GetTween<TMP_Text, int, TMPProRevealInterpolator>(text, duration, text.textInfo.characterCount);
+        }
 
         /// <summary>
-        /// Animates a displayed number in a <see cref="TMPro.TMP_Text"/> from <paramref name="from"/> to <paramref name="to"/>.
+        /// Animates a displayed number in a <see cref="TMP_Text"/> from <paramref name="from"/> to <paramref name="to"/>.
         /// </summary>
         /// <param name="text">Target TMP_Text.</param>
         /// <param name="from">Starting number.</param>
         /// <param name="to">Ending number.</param>
         /// <param name="duration">Duration in seconds.</param>
         /// <param name="format">Standard numeric format string (e.g. <c>"0"</c>, <c>"0.00"</c>). Default is <c>"0"</c>.</param>
-        public static Tween FlowCounter(this TMPro.TMP_Text text, float from, float to, float duration, string format = "0")
+        public static Tween FlowCounter(this TMP_Text text, float from, float to, float duration, string format = "0")
         {
             var interp = TmpCounterFloatInterpolator.Get();
             interp.Setup(text, from, to, format);
@@ -587,13 +596,13 @@ namespace FlT
         }
 
         /// <summary>
-        /// Animates an integer counter displayed in a <see cref="TMPro.TMP_Text"/> from <paramref name="from"/> to <paramref name="to"/>.
+        /// Animates an integer counter displayed in a <see cref="TMP_Text"/> from <paramref name="from"/> to <paramref name="to"/>.
         /// </summary>
         /// <param name="text">Target TMP_Text.</param>
         /// <param name="from">Starting integer.</param>
         /// <param name="to">Ending integer.</param>
         /// <param name="duration">Duration in seconds.</param>
-        public static Tween FlowCounter(this TMPro.TMP_Text text, int from, int to, float duration)
+        public static Tween FlowCounter(this TMP_Text text, int from, int to, float duration)
         {
             var interp = TmpCounterIntInterpolator.Get();
             interp.Setup(text, from, to);
@@ -601,7 +610,7 @@ namespace FlT
         }
 
         /// <summary>
-        /// Animates a counter in a <see cref="TMPro.TMP_Text"/> using a custom formatter callback.
+        /// Animates a counter in a <see cref="TMP_Text"/> using a custom formatter callback.
         /// </summary>
         /// <param name="text">Target TMP_Text.</param>
         /// <param name="from">Starting value.</param>
@@ -611,7 +620,7 @@ namespace FlT
         /// A function that converts the current float value to a display string.
         /// Example: <c>value => $"${value:0.00}"</c>
         /// </param>
-        public static Tween FlowCounter(this TMPro.TMP_Text text, float from, float to, float duration, Func<float, string> formatter)
+        public static Tween FlowCounter(this TMP_Text text, float from, float to, float duration, Func<float, string> formatter)
         {
             var interp = TmpCounterFormatterInterpolator.Get();
             interp.Setup(text, from, to, formatter);
@@ -619,13 +628,13 @@ namespace FlT
         }
 
         /// <summary>
-        /// Animates the color of all characters in a <see cref="TMPro.TMP_Text"/>.
+        /// Animates the color of all characters in a <see cref="TMP_Text"/>.
         /// Forces a mesh update each tick to apply vertex color changes immediately.
         /// </summary>
         /// <param name="text">Target TMP_Text.</param>
         /// <param name="to">Target color.</param>
         /// <param name="duration">Duration in seconds.</param>
-        public static Tween FlowCharacterColor(this TMPro.TMP_Text text, Color to, float duration)
+        public static Tween FlowCharacterColor(this TMP_Text text, Color to, float duration)
         {
             var interp = TmpCharacterColorInterpolator.Get();
             interp.Setup(text, to);
@@ -633,25 +642,26 @@ namespace FlT
         }
 
         /// <summary>
-        /// Reveals text in a <see cref="TMPro.TMP_Text"/> one character at a time using <c>maxVisibleCharacters</c>.
+        /// Reveals text in a <see cref="TMP_Text"/> one character at a time using <c>maxVisibleCharacters</c>.
         /// Unlike <see cref="FlowReveal"/>, this shows crisp fully-visible characters rather than fading them in.
         /// </summary>
         /// <param name="text">Target TMP_Text.</param>
         /// <param name="duration">Total reveal duration in seconds.</param>
         /// <param name="onComplete">Optional callback fired when all characters are visible.</param>
-        public static Tween FlowTypewriter(this TMPro.TMP_Text text, float duration, Action onComplete = null)
+        public static Tween FlowTypewriter(this TMP_Text text, float duration, Action onComplete = null)
         {
+            text.ForceMeshUpdate();
             int totalChars = text.textInfo.characterCount;
             text.maxVisibleCharacters = 0;
 
             var interp = TmpTypewriterInterpolator.Get();
             interp.Setup(text, totalChars);
             Tween tween = FlowTween.MakeTween(duration, interp, text);
-            if (onComplete != null) tween.OnComplete(onComplete);
+            
+            if (onComplete != null) 
+                tween.OnComplete(onComplete);
             return tween;
         }
-        #endif
-        
         #endregion
 
         #region RigidBody Methods
@@ -706,15 +716,25 @@ namespace FlT
         /// <summary>Rotates a Transform 360° around the Z axis (2D spin).</summary>
         /// <param name="transform">Target transform.</param>
         /// <param name="duration">Duration of one full rotation in seconds.</param>
-    public static Tween FlowSpin(this Transform transform, float duration) =>
-        transform.FlowRotateLocal(Vector3.forward * 360f, duration);
+        public static Tween FlowSpin(this Transform transform, float duration, int cycles = -1, Action<int> onCycle = null, SpinDirection direction = SpinDirection.Forward)
+        {
+            Vector3 spinDirection = direction == SpinDirection.Forward ? Vector3.forward : Vector3.back;
+            Tween tween = transform.FlowRotateLocal(spinDirection * 360f, duration)
+                .SetLoops(cycles, Tween.LoopType.Restart);
+            if (onCycle != null) tween.OnLoop(onCycle);
+            return tween;
+        }
 
         /// <summary>Rotates a Transform 360° around a given axis.</summary>
         /// <param name="transform">Target transform.</param>
         /// <param name="axis">World axis to spin around (e.g. <c>Vector3.up</c>).</param>
         /// <param name="duration">Duration of one full rotation in seconds.</param>
-        public static Tween FlowSpin(this Transform transform, Vector3 axis, float duration) =>
-            transform.FlowRotateLocal(axis * 360f, duration);
+        public static Tween FlowSpin(this Transform transform, Vector3 direction, float duration, int cycles = -1, Action<int> onCycle = null)
+        {
+            Tween tween = transform.FlowRotateLocal(direction * 360f, duration).SetLoops(cycles, Tween.LoopType.Restart);
+            if (onCycle != null) tween.OnLoop(onCycle);
+            return tween;
+        }
 
         #endregion
 
@@ -848,7 +868,7 @@ namespace FlT
         /// </summary>
         /// <param name="spriteRenderer">Target SpriteRenderer.</param>
         /// <param name="blinks">Number of blink cycles. Default is 4.</param>
-        /// <param name="blinkSpeed">Duration of each fade in/out step in seconds. Default is 0.1.</param>
+        /// <param name="blinkDuration">Duration of each fade in/out step in seconds. Default is 0.1.</param>
         /// <param name="endVisible">Whether the renderer ends fully visible. Default is true.</param>
         public static Tween FlowBlink(this SpriteRenderer spriteRenderer, int blinks = 4, float blinkDuration = 0.1f, bool endVisible = true)
         {
@@ -862,7 +882,7 @@ namespace FlT
         /// </summary>
         /// <param name="CanvasGroup">Target CanvasGroup.</param>
         /// <param name="blinks">Number of blink cycles. Default is 4.</param>
-        /// <param name="blinkSpeed">Duration of each fade in/out step in seconds. Default is 0.1.</param>
+        /// <param name="blinkDuration">Duration of each blink cycle in seconds. Default is 0.1.</param>
         /// <param name="endVisible">Whether the renderer ends fully visible. Default is true.</param>
         public static Tween FlowBlink(this CanvasGroup canvasGroup, int blinks = 4, float blinkDuration = 0.1f, bool endVisible = true)
         {
@@ -890,9 +910,10 @@ namespace FlT
         {
             Vector2 target    = rectTransform.anchoredPosition;
             Vector2 startFrom = target + DirectionToOffset(direction, offset);
-            rectTransform.anchoredPosition = startFrom;
 
-            return rectTransform.FlowAnchorMove(target, duration).Sine().EaseOut();
+            return rectTransform.FlowAnchorMove(target, duration)
+                                .Sine().EaseOut()
+                                .OnStart(() => rectTransform.anchoredPosition = startFrom);
         }
 
         /// <summary>
@@ -952,7 +973,7 @@ namespace FlT
         /// <param name="scaleMagnitude">Scale overshoot as a fraction of original scale. Default is 0.05.</param>
         /// <param name="alphaMin">Minimum alpha during the pulse. Default is 0.7.</param>
         /// <param name="frequency">Pulses per second. Default is 1.</param>
-        public static Sequence FlowPulse(this Transform transform, CanvasGroup canvasGroup,
+        public static (Tween scale, Tween alpha) FlowPulse(this Transform transform, CanvasGroup canvasGroup,
             float scaleMagnitude = 0.05f, float alphaMin = 0.7f, float frequency = 1f)
         {
             Vector3 origin = transform.localScale;
@@ -964,10 +985,7 @@ namespace FlT
             Tween alphaTween = canvasGroup.FlowFade(alphaMin, period)
                 .SetLoops(-1, Tween.LoopType.Yoyo).Sine().EaseInOut();
 
-            return FlowTween.Sequence()
-                .Append(scaleTween)
-                .Join(alphaTween)
-                .Play();
+            return (scaleTween, alphaTween);
         }
 
         /// <summary>
@@ -1104,6 +1122,26 @@ namespace FlT
             float seed = UnityEngine.Random.value * 10000f;
             var interp = ShakeRotationAxisInterpolator.Get();
             interp.Setup(transform, startRot, axis, strength, frequency, seed);
+            return FlowTween.MakeTween(duration, interp, transform);
+        }
+
+        #endregion
+
+        #region Shake Scale
+
+        /// <summary>Shakes a Transform's local scale using Perlin noise, decaying back to the original scale.</summary>
+        /// <param name="transform">Target transform.</param>
+        /// <param name="duration">Duration in seconds.</param>
+        /// <param name="strength">Peak scale offset magnitude. Default is 0.3.</param>
+        /// <param name="frequency">Shake speed (samples per second). Default is 20.</param>
+        public static Tween FlowShakeScale(this Transform transform, float duration, float strength = 0.3f, float frequency = 20f)
+        {
+            Vector3 startScale = transform.localScale;
+            float seedX = UnityEngine.Random.value * 10000f;
+            float seedY = seedX + 131.73f;
+            float seedZ = seedX + 263.46f;
+            var interp = ShakeScaleInterpolator.Get();
+            interp.Setup(transform, startScale, strength, frequency, seedX, seedY, seedZ);
             return FlowTween.MakeTween(duration, interp, transform);
         }
 
@@ -1250,10 +1288,10 @@ namespace FlT
 
         #region Look At
         /// <summary>
-        /// Continuously rotates a Transform to face a fixed world position each tick for the given duration.
+        /// Continuously rotates a Transform to face a dynamic world position each tick for the given duration.
         /// </summary>
         /// <param name="transform">Transform to rotate.</param>
-        /// <param name="target">The world position to look at.</param>
+        /// <param name="targetProvider">A delegate returning the world position to face. Called each tick.</param>
         /// <param name="duration">How long to track the position in seconds.</param>
         /// <param name="upAxis">The up axis used for orientation. Defaults to <c>Vector3.up</c>.</param>
         public static Tween FlowLookAt(this Transform transform, Func<Vector3> targetProvider, float duration, Vector3? upAxis = null)

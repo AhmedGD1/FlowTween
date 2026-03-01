@@ -192,22 +192,53 @@ namespace FlT
     }
 
     // ─── Material ─────────────────────────────────────────────────────────────
-    internal readonly struct RendererColorInterpolator : IPropertyInterpolator<Renderer, Color>
-    {
-        private static readonly MaterialPropertyBlock mpb = new();
-        private static readonly int colorId = Shader.PropertyToID("_Color");
 
-        public Color GetValue(Renderer r)
+    /// <summary>
+    /// Shared helpers for pipeline-agnostic color property resolution.
+    /// Prefers _BaseColor (URP/HDRP) and falls back to _Color (built-in pipeline).
+    /// </summary>
+    internal static class RendererColorHelper
+    {
+        private static readonly MaterialPropertyBlock mpb      = new();
+        private static readonly int                   baseId   = Shader.PropertyToID("_BaseColor");
+        private static readonly int                   legacyId = Shader.PropertyToID("_Color");
+
+        public static int ResolveId(Renderer r) =>
+            r.sharedMaterial.HasProperty(baseId) ? baseId : legacyId;
+
+        public static Color GetColor(Renderer r)
         {
+            int id = ResolveId(r);
             r.GetPropertyBlock(mpb);
-            return mpb.GetColor(colorId);
+            return mpb.HasColor(id) ? mpb.GetColor(id) : r.sharedMaterial.color;
         }
 
-        public void SetValue(Renderer r, Color from, Color to, float t)
+        public static void SetColor(Renderer r, Color color)
         {
+            int id = ResolveId(r);
             r.GetPropertyBlock(mpb);
-            mpb.SetColor(colorId, Color.LerpUnclamped(from, to, t));
+            mpb.SetColor(id, color);
             r.SetPropertyBlock(mpb);
+        }
+    }
+
+    internal readonly struct RendererColorInterpolator : IPropertyInterpolator<Renderer, Color>
+    {
+        public Color GetValue(Renderer r) => RendererColorHelper.GetColor(r);
+
+        public void SetValue(Renderer r, Color from, Color to, float t) =>
+            RendererColorHelper.SetColor(r, Color.LerpUnclamped(from, to, t));
+    }
+
+    internal readonly struct RendererAlphaInterpolator : IPropertyInterpolator<Renderer, float>
+    {
+        public float GetValue(Renderer r) => RendererColorHelper.GetColor(r).a;
+
+        public void SetValue(Renderer r, float from, float to, float t)
+        {
+            Color c = RendererColorHelper.GetColor(r);
+            c.a = Mathf.LerpUnclamped(from, to, t);
+            RendererColorHelper.SetColor(r, c);
         }
     }
 
@@ -281,9 +312,9 @@ namespace FlT
     // TMP Pro
     internal readonly struct TMPProRevealInterpolator : IPropertyInterpolator<TMP_Text, int>
     {
-        public int GetValue(TMP_Text target) => 0;
+        public int GetValue(TMP_Text target) => target.maxVisibleCharacters;
         public void SetValue(TMP_Text target, int from, int to, float t) =>
-            target.maxVisibleCharacters = Mathf.RoundToInt(Mathf.LerpUnclamped(from, to, t)); 
+            target.maxVisibleCharacters = Mathf.RoundToInt(Mathf.LerpUnclamped(from, to, t));
     }
 
     // ─── RectTransform Anchors ────────────────────────────────────────────────

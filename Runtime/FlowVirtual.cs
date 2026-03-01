@@ -59,5 +59,12 @@ namespace FlT
 
             return tween;
         }
+
+        public static Tween DelayedCall(float duration, Action callback = null)
+        {
+            Tween tween = FlowTween.GetTweenRaw(duration).Linear().EaseIn();
+            if (callback != null) tween.OnComplete(callback);
+            return tween;
+        }
     }
 }

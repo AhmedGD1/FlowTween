@@ -317,6 +317,18 @@ namespace FlT
         public Tween EaseOutIn() => SetEase(EaseType.OutIn);
         #endregion
 
+        /// <summary>
+        /// Immediately frees the tween without applying final value or firing callbacks.
+        /// The tween is returned to the pool instantly.
+        /// </summary>
+        public void Free()
+        {
+            if (completed) return;
+            
+            completed = true;
+            FlowTween.ReturnToPool(this);
+        }
+
         #region Internal Methods
         internal void SetInterpolator(ITweenInterpolator i)
         {
