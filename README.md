@@ -1,6 +1,6 @@
 # FlowTween
 
-A tweening library for Unity built around a fluent, chainable API. No setup required — drop the files in, and it works.
+Unity tweening library built for performance — pooled and zero-allocation in hot paths, with a fluent API designed to stay out of the GC's way.
 
 ---
 
@@ -72,7 +72,7 @@ Every `Flow*` method returns a `Tween` you can configure before it starts playin
 | `FlowValue(to, duration)` | Slider value |
 | `FlowPosition(to, duration)` | ScrollRect scroll position |
 
-### TextMeshPro *(requires `FLOWTWEEN_TMP_SUPPORT` define)*
+### TextMeshPro
 | Method | Description |
 |---|---|
 | `FlowReveal(duration)` | Fade-in all characters via vertex alpha |
@@ -314,6 +314,37 @@ Awaiting a tween with `SetLoops(-1)` will throw — use a `CancellationToken` to
 
 ---
 
+## Coroutines
+
+Tweens and sequences can be used natively with IEnumerators
+
+```csharp
+private IEnumerator MyAnimation()
+{
+    // Wait until fully done (same as DOTween's WaitForCompletion)
+    yield return transform.FlowTo(...).WaitForCompletion();
+    
+    // Wait until a specific progress point (0–1)
+    yield return myTween.WaitForPosition(0.5f);
+    
+    // Wait until N loops have elapsed
+    yield return myTween.SetLoops(3).WaitForElapsedLoops(2);
+    
+    // Wait N seconds of tween-time
+    yield return myTween.WaitForSeconds(1.5f);
+    
+    // Wait for kill (natural end OR Kill() call)
+    yield return myTween.WaitForKill();
+
+    yield return transform.FlowMoveTo(targetPos, 1f).Spring().EaseOut().WaitForCompletion();
+    // guaranteed to run only after the tween finishes
+    yield return spriteRenderer.FlowFadeTo(0f, 0.5f).WaitForCompletion();
+    Destroy(gameObject);
+}
+
+```
+---
+
 ## Settings
 
 Create a `FlowTweenSettings` asset at `Resources/FlowTweenSettings` to configure the library globally:
@@ -365,10 +396,6 @@ Two editor windows are included, accessible via the **FlowTween** menu:
 <img width="710" height="646" alt="image" src="https://github.com/user-attachments/assets/09f26e37-25de-4ac6-9f36-c8437ef3567f" />
 
 ---
-
-## TMP Support
-
-TextMeshPro methods (`FlowReveal`, `FlowTypewriter`, `FlowCounter`, `FlowCharacterColor`) are compiled conditionally. Add `FLOWTWEEN_TMP_SUPPORT` to your project's **Scripting Define Symbols** in Player Settings to enable them.
 
 ---
 
