@@ -1,62 +1,95 @@
 using System.Collections;
+using UnityEngine;
 
 namespace FlT
 {
+    /// <summary>
+    /// Coroutine support for FlowTween.
+    /// Mirrors DOTween's WaitForCompletion / WaitForKill / WaitForElapsedLoops pattern.
+    ///
+    /// Usage:
+    ///   yield return tween.WaitForCompletion();
+    ///   yield return tween.WaitForKill();
+    ///   yield return tween.WaitForElapsedLoops(2);
+    ///   yield return tween.WaitForPosition(0.5f);
+    ///   yield return sequence.WaitForCompletion();
+    /// </summary>
     public static class FlowTweenCoroutine
     {
         // ── Tween ──────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Yields until the tween completes all its loops, or is killed.
-        /// Safe to use with finite loop counts only; infinite loops will yield forever.
         /// </summary>
         public static IEnumerator WaitForCompletion(this Tween tween)
         {
-            while (tween != null && !tween.IsCompleted)
+            // We can't poll tween.IsCompleted directly because FlowTween returns
+            // the tween to the pool (resetting it) the same frame it completes.
+            // Instead we plant a flag via callbacks that survives the reset.
+            bool done = false;
+            tween.OnComplete(() => done = true);
+            tween.OnKill(() => done = true);
+
+            while (!done)
                 yield return null;
         }
 
         /// <summary>
         /// Yields until the tween is killed (via Kill() or a destroyed target).
-        /// Completes naturally also counts — the tween is marked completed which stops the loop.
+        /// Natural completion also counts.
         /// </summary>
         public static IEnumerator WaitForKill(this Tween tween)
         {
-            // IsCompleted becomes true on both natural completion AND Kill(),
-            // so this doubles as a "wait until gone" helper.
-            while (tween != null && !tween.IsCompleted)
+            bool done = false;
+            tween.OnComplete(() => done = true);
+            tween.OnKill(() => done = true);
+
+            while (!done)
                 yield return null;
         }
 
         /// <summary>
         /// Yields until the tween has completed at least <paramref name="loops"/> loops.
-        /// Loop count starts at 0 on the first completed loop.
         /// </summary>
         public static IEnumerator WaitForElapsedLoops(this Tween tween, int loops)
         {
-            while (tween != null && !tween.IsCompleted && tween.DbgCurrentLoop < loops)
+            bool done = false;
+            tween.OnComplete(() => done = true);
+            tween.OnKill(() => done = true);
+            tween.OnLoop(currentLoop =>
+            {
+                if (currentLoop >= loops) done = true;
+            });
+
+            while (!done)
                 yield return null;
         }
 
         /// <summary>
         /// Yields until the tween's normalized progress reaches or exceeds
-        /// <paramref name="position"/> (0–1).
+        /// <paramref name="position"/> (0-1).
         /// </summary>
         public static IEnumerator WaitForPosition(this Tween tween, float position)
         {
-            while (tween != null && !tween.IsCompleted && tween.Progress < position)
+            bool done = false;
+            tween.OnComplete(() => done = true);
+            tween.OnKill(() => done = true);
+
+            while (!done && tween.Progress < position)
                 yield return null;
         }
 
         /// <summary>
-        /// Yields for <paramref name="seconds"/> of tween-time elapsed
-        /// (respects the tween's own TimeScale, but NOT FlowTween's globalTimeScale
-        ///  since Elapsed is already advanced by the engine each frame).
+        /// Yields for <paramref name="seconds"/> of tween-time elapsed.
         /// </summary>
         public static IEnumerator WaitForSeconds(this Tween tween, float seconds)
         {
+            bool done = false;
+            tween.OnComplete(() => done = true);
+            tween.OnKill(() => done = true);
+
             float target = tween.Elapsed + seconds;
-            while (tween != null && !tween.IsCompleted && tween.Elapsed < target)
+            while (!done && tween.Elapsed < target)
                 yield return null;
         }
 
@@ -67,7 +100,11 @@ namespace FlT
         /// </summary>
         public static IEnumerator WaitForCompletion(this Sequence sequence)
         {
-            while (sequence != null && !sequence.IsCompleted)
+            bool done = false;
+            sequence.OnComplete(() => done = true);
+            sequence.OnKill(() => done = true);
+
+            while (!done)
                 yield return null;
         }
 
@@ -76,7 +113,11 @@ namespace FlT
         /// </summary>
         public static IEnumerator WaitForKill(this Sequence sequence)
         {
-            while (sequence != null && !sequence.IsCompleted)
+            bool done = false;
+            sequence.OnComplete(() => done = true);
+            sequence.OnKill(() => done = true);
+
+            while (!done)
                 yield return null;
         }
 
@@ -85,7 +126,15 @@ namespace FlT
         /// </summary>
         public static IEnumerator WaitForElapsedLoops(this Sequence sequence, int loops)
         {
-            while (sequence != null && !sequence.IsCompleted && sequence.DbgCurrentLoop < loops)
+            bool done = false;
+            sequence.OnComplete(() => done = true);
+            sequence.OnKill(() => done = true);
+            sequence.OnLoop(currentLoop =>
+            {
+                if (currentLoop >= loops) done = true;
+            });
+
+            while (!done)
                 yield return null;
         }
 
@@ -94,7 +143,11 @@ namespace FlT
         /// </summary>
         public static IEnumerator WaitForPosition(this Sequence sequence, float position)
         {
-            while (sequence != null && !sequence.IsCompleted && sequence.Elapsed < position)
+            bool done = false;
+            sequence.OnComplete(() => done = true);
+            sequence.OnKill(() => done = true);
+
+            while (!done && sequence.Elapsed < position)
                 yield return null;
         }
     }
