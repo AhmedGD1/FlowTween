@@ -1,5 +1,5 @@
 {
-  "name": "com.ahmedgd.flowtween",
+  "name": "com.flowtween.tween",
   "version": "1.0.2",
   "displayName": "FlowTween",
   "description": "Zero-allocation tween library for Unity with real-time debugger. 50,000 tweens at 90fps.",
@@ -9,7 +9,7 @@
   "changelogUrl": "https://github.com/AhmedGD1/FlowTween/blob/main/CHANGELOG.md",
   "licensesUrl": "https://github.com/AhmedGD1/FlowTween/blob/main/LICENSE",
   "author": {
-    "name": "AhmedGD",
+    "name": "Ahmed_GD",
     "email": "aag75yssar@gmail.com",
     "url": "https://github.com/AhmedGD1"
   },
@@ -28,5 +28,6 @@
     }
   ]
 }
+
 
 
