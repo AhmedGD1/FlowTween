@@ -65,6 +65,8 @@ namespace FlT
         private Action<float> onUpdate;
         private Action<int> onLoop;
         private Action onKill;
+        private Action onPause;
+        private Action onResume;
 
         private AnimationCurve customCurve;
 
@@ -90,6 +92,7 @@ namespace FlT
         private float speed;
         private float delayElapsed;
         private float playbackDirection = 1f;
+        private float defaultPlaybackDirection = 1f;
 
         private void CheckComplete()
         {
@@ -133,20 +136,41 @@ namespace FlT
 
         public Tween Restart()
         {
-            Elapsed = 0f;
+            Elapsed = defaultPlaybackDirection == 1f ? 0f : Duration;
+            interpolator?.OnTick(Progress);
             currentLoop = 0;
             completed = false;
             paused = false;
             started = false;
-            playbackDirection = 1f;
             delayElapsed = 0f; 
+            playbackDirection = defaultPlaybackDirection;
 
+            return this;
+        }
+
+        public Tween Rewind()
+        {
+            Elapsed = defaultPlaybackDirection == 1f ? 0f : Duration;
+            interpolator?.OnTick(Progress);
+            paused = true;
+            currentLoop = 0;
+            started = false;
+            playbackDirection = 1f;
+            return this;
+        }
+
+        public Tween PlayBackwards()
+        {
+            Elapsed = Duration;
+            defaultPlaybackDirection = -1f;
+            playbackDirection = defaultPlaybackDirection;
             return this;
         }
 
         public void Complete()
         {
             Elapsed = playbackDirection > 0f ? Duration : 0f;
+            interpolator?.OnTick(Progress);
             interpolator?.OnComplete();
             onComplete?.Invoke();
             pendingTween?.UnPend();
@@ -183,18 +207,42 @@ namespace FlT
             onKill = callback;
             return this;
         }
+
+        public Tween OnPause(Action callback)
+        {
+            onPause = callback;
+            return this;
+        }
+
+        public Tween OnResume(Action callback)
+        {
+            onResume = callback;
+            return this;
+        }
+
         #endregion
 
         #region Pause & Resume
         public Tween Pause()
         {
             paused = true;
+            onPause?.Invoke();
             return this;
         }
 
         public Tween Resume()
         {
             paused = false;
+            onResume?.Invoke();
+            return this;
+        }
+
+        public Tween TogglePause()
+        {
+            paused = !paused;
+
+            if (paused) onPause?.Invoke();
+            else        onResume?.Invoke();
             return this;
         }
         #endregion
@@ -414,36 +462,39 @@ namespace FlT
             group = null;
 
             transition = FlowTween.DefaultTransition;
-            ease = FlowTween.DefaultEase;
+            ease       = FlowTween.DefaultEase;
             updateMode = TweenUpdateMode.Idle;
 
-            completed = false;
-            paused = false;
-            started = false;
-            relative = false;
-            useSpeedBase = false;
+            completed       = false;
+            paused          = false;
+            started         = false;
+            relative        = false;
+            useSpeedBase    = false;
             useUnscaledTime = false;
-            popped = false;
+            popped          = false;
 
-            Elapsed = 0f;
+            Elapsed      = 0f;
             delayElapsed = 0f;
-            Delay = 0f;
-            speed = 0f;
+            Delay        = 0f;
+            speed        = 0f;
 
-            onLoop = null;
+            onLoop     = null;
             onComplete = null;
-            onUpdate = null;
-            onStart = null;
-            onKill = null;
+            onUpdate   = null;
+            onStart    = null;
+            onKill     = null;
+            onPause    = null;
+            onResume   = null;
 
-            loops = 0;
+            loops       = 0;
             currentLoop = 0;
 
-            customCurve = null;
+            customCurve  = null;
             pendingTween = null;
 
-            TimeScale = 1f;
-            playbackDirection = 1f;
+            TimeScale                = 1f;
+            defaultPlaybackDirection = 1f;
+            playbackDirection        = defaultPlaybackDirection;
         }
         #endregion
 
